@@ -10,7 +10,7 @@ During this project we will be working on a desktop-application that provides se
 
 
 
-# MIT License
+## MIT License
 The MIT License (MIT)
 Copyright © 2025 <copyright holders>
 
