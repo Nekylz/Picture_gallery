@@ -15,6 +15,19 @@
     <VerticalStackLayout>
         <ContentView:Header />
         <ContentView x:Name="SubPage" />
+
+        <Button
+            Text="Upload photo"
+            Clicked="UploadMedia"
+            VerticalOptions="Center" 
+            HorizontalOptions="Center" />
+
+        <Label
+            x:Name="FileName"
+            Text="No photo selected"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+
         <ContentView:Footer />
     </VerticalStackLayout>
 </ContentPage>
