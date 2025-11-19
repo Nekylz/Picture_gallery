@@ -19,7 +19,9 @@ public partial class Gallery : ContentPage
     /// associated UI element.</remarks>
     private async void UploadMedia(object sender, EventArgs e)
     {
-        var pngFileType = new FilePickerFileType(
+        try
+        {
+            var pngFileType = new FilePickerFileType(
         new Dictionary<DevicePlatform, IEnumerable<string>>
         {
             { DevicePlatform.iOS, new[] { "public.png" } },
@@ -28,45 +30,59 @@ public partial class Gallery : ContentPage
             { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } } //Handles uppercase files too more robust
         });
 
-        var result = await FilePicker.PickAsync(new PickOptions
-        {
-            FileTypes = pngFileType,
-            PickerTitle = "Select a PNG file"
-        });
-
-        if (result != null)
-        {
-            var filePath = result.FullPath;
-
-            FileName.Text = $"Selected file: {result.FileName}";
-            SelectedImage.Source = ImageSource.FromFile(filePath);
-            SelectedImage.IsVisible = true;
-
-            // Get image dimensions for PNG
-            int width = 0;
-            int height = 0;
-            using (var stream = File.OpenRead(filePath))
+            var result = await FilePicker.PickAsync(new PickOptions
             {
-                using (var bitmap = SKBitmap.Decode(stream))
+                FileTypes = pngFileType,
+                PickerTitle = "Select a PNG file"
+            });
+
+            if (result != null)
+            {
+                var filePath = result.FullPath;
+
+                if (!File.Exists(filePath)) {
+                    await DisplayAlert("Foutmelding",
+                        "Het geselecteerde bestand kon niet worden gevonden.",
+                        "OK");
+                    return;
+                }
+
+                FileName.Text = $"Selected file: {result.FileName}";
+                SelectedImage.Source = ImageSource.FromFile(filePath);
+                SelectedImage.IsVisible = true;
+
+                // Get image dimensions for PNG
+                int width = 0;
+                int height = 0;
+                using (var stream = File.OpenRead(filePath))
                 {
-                    if (bitmap != null)
+                    using (var bitmap = SKBitmap.Decode(stream))
                     {
-                        width = bitmap.Width;
-                        height = bitmap.Height;
+                        if (bitmap != null)
+                        {
+                            width = bitmap.Width;
+                            height = bitmap.Height;
+                        }
                     }
                 }
+
+                var imageDimensions = (width, height);
+
+                // Get file size in bytes
+                long fileSize = new FileInfo(filePath).Length;
+
+                // Convert to mb as a decimal
+                double fileSizeMB = fileSize / (1024.0 * 1024.0);
+
+                PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
+                FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
             }
-
-            var imageDimensions = (width, height);
-
-            // Get file size in bytes
-            long fileSize = new FileInfo(filePath).Length;
-
-            // Convert to mb as a decimal
-            double fileSizeMB = fileSize / (1024.0 * 1024.0);
-
-            PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-            FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
+        }
+        catch (Exception ex)
+        {
+            await DisplayAlert("Foutmelding",
+                $"Er ging iets mis tijdens het uploaden.\n\nError: {ex.Message}",
+                "OK");
         }
     }
 }
