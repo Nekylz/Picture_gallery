@@ -28,7 +28,7 @@ public partial class MyMainPage : ContentPage
             { DevicePlatform.iOS, new[] { "public.png" } },
             { DevicePlatform.Android, new[] { "image/png" } },
             { DevicePlatform.WinUI, new[] { ".png" } },
-            { DevicePlatform.macOS, new[] { "png" } }
+            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } } //Handles uppercase files too more robust
         });
 
         var result = await FilePicker.PickAsync(new PickOptions
@@ -43,6 +43,9 @@ public partial class MyMainPage : ContentPage
             var filePath = result.FullPath;
 
             FileName.Text = $"Selected file: {result.FileName}";
+            // Show the image
+            SelectedImage.Source = ImageSource.FromFile(filePath);
+            SelectedImage.IsVisible = true;
         }
     }
 }

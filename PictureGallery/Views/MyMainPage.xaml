@@ -27,6 +27,15 @@
             Text="No photo selected"
             VerticalOptions="Center"
             HorizontalOptions="Center" />
+        <!--added image view to xaml -->
+        <Image
+            x:Name="SelectedImage"
+            WidthRequest="250"
+            HeightRequest="250"
+            Aspect="AspectFit"
+            IsVisible="False"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
 
         <ContentView:Footer />
     </VerticalStackLayout>
