@@ -17,11 +17,7 @@
             VerticalOptions="Center" 
             HorizontalOptions="Center" />
 
-        <Label
-            x:Name="FileName"
-            Text="No photo selected"
-            VerticalOptions="Center"
-            HorizontalOptions="Center" />
+        
         <!--added image view to xaml -->
         <Image
             x:Name="SelectedImage"
@@ -31,5 +27,25 @@
             IsVisible="False"
             VerticalOptions="Center"
             HorizontalOptions="Center" />
+
+        <Label
+            x:Name="FileName"
+            Text="No photo selected"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+
+        <Label
+            x:Name="PhotoDimensions"
+            Text="No photo dimensions"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+
+        <Label
+            x:Name="FileSize"
+            Text="No photo size"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+
+
     </VerticalStackLayout>
 </ContentPage>
