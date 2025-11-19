@@ -1,6 +1,6 @@
 namespace PictureGallery.Views;
 
-public partial class Header : ContentPage
+public partial class Header : ContentView
 {
 	public Header()
 	{
