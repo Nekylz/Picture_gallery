@@ -6,17 +6,37 @@
              Title="MyMainPage">
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Page1" Clicked="OnPage1Clicked"/>
-        <ToolbarItem Text="Gallery" Clicked="OnPage2Clicked"/>
     </ContentPage.ToolbarItems>
     <ContentPage.MenuBarItems>
         <MenuBarItem Text="Pages">
             <MenuFlyoutItem Text="Page1" Clicked="OnPage1Clicked"/>
-            <MenuFlyoutItem Text="Gallery" Clicked="OnPage2Clicked"/>
         </MenuBarItem>
     </ContentPage.MenuBarItems>
     <VerticalStackLayout>
         <ContentView:Header />
         <ContentView x:Name="SubPage" />
+
+        <Button
+            Text="Upload photo"
+            Clicked="UploadMedia"
+            VerticalOptions="Center" 
+            HorizontalOptions="Center" />
+
+        <Label
+            x:Name="FileName"
+            Text="No photo selected"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+        <!--added image view to xaml -->
+        <Image
+            x:Name="SelectedImage"
+            WidthRequest="250"
+            HeightRequest="250"
+            Aspect="AspectFit"
+            IsVisible="False"
+            VerticalOptions="Center"
+            HorizontalOptions="Center" />
+
         <ContentView:Footer />
     </VerticalStackLayout>
 </ContentPage>

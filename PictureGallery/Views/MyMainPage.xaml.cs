@@ -22,30 +22,38 @@ public partial class MyMainPage : ContentPage
     /// associated UI element.</remarks>
     private async void UploadMedia(object sender, EventArgs e)
     {
-        var pngFileType = new FilePickerFileType(
-        new Dictionary<DevicePlatform, IEnumerable<string>>
+        try
         {
-            { DevicePlatform.iOS, new[] { "public.png" } },
-            { DevicePlatform.Android, new[] { "image/png" } },
-            { DevicePlatform.WinUI, new[] { ".png" } },
-            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } } //Handles uppercase files too more robust
-        });
+            var pngFileType = new FilePickerFileType(
+                new Dictionary<DevicePlatform, IEnumerable<string>>
+                {
+                    { DevicePlatform.iOS, new[] { "public.png" } },
+                    { DevicePlatform.Android, new[] { "image/png" } },
+                    { DevicePlatform.WinUI, new[] { ".png" } },
+                    { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } } 
+                });
 
-        var result = await FilePicker.PickAsync(new PickOptions
+            var result = await FilePicker.PickAsync(new PickOptions
+            {
+                FileTypes = pngFileType,
+                PickerTitle = "Select a PNG file"
+            });
+
+            if (result != null)
+            {
+                var filePath = result.FullPath;
+
+                FileName.Text = $"Selected file: {result.FileName}";
+                SelectedImage.Source = ImageSource.FromFile(filePath);
+                SelectedImage.IsVisible = true;
+            }
+        }
+        catch (Exception ex)
         {
-            FileTypes = pngFileType,
-            PickerTitle = "Select a PNG file"
-        });
-
-        if (result != null)
-        {
-            // Do something with the selected PNG file
-            var filePath = result.FullPath;
-
-            FileName.Text = $"Selected file: {result.FileName}";
-            // Show the image
-            SelectedImage.Source = ImageSource.FromFile(filePath);
-            SelectedImage.IsVisible = true;
+            await DisplayAlert("Foutmelding",
+                $"Er ging iets mis tijdens het uploaden.\n\nError: {ex.Message}",
+                "OK");
         }
     }
+
 }
