@@ -40,24 +40,25 @@
                     HorizontalOptions="Center" />
             -->
             
+            <!--
+            <Label
+                x:Name="FileName"
+                Text="No photo selected"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
 
             <Label
-            x:Name="FileName"
-            Text="No photo selected"
-            VerticalOptions="Center"
-            HorizontalOptions="Center" />
+                x:Name="PhotoDimensions"
+                Text="No photo dimensions"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
 
             <Label
-            x:Name="PhotoDimensions"
-            Text="No photo dimensions"
-            VerticalOptions="Center"
-            HorizontalOptions="Center" />
-
-            <Label
-            x:Name="FileSize"
-            Text="No photo size"
-            VerticalOptions="Center"
-            HorizontalOptions="Center" />
+                x:Name="FileSize"
+                Text="No photo size"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
+            -->
 
         </VerticalStackLayout>
 
@@ -68,36 +69,48 @@
               VerticalOptions="Fill"
               HorizontalOptions="Fill">
 
-            <Image x:Name="FullscreenImage"
+            <!-- Scrollable content -->
+            <ScrollView VerticalOptions="Fill"
+                        HorizontalOptions="Fill">
+
+                <!-- Stack image + info vertically -->
+                <VerticalStackLayout VerticalOptions="Center"
+                         HorizontalOptions="Center"
+                         Spacing="10"
+                         Padding="20">
+
+                    <Image x:Name="FullscreenImage"
                    Aspect="AspectFit"
                    VerticalOptions="Center"
                    HorizontalOptions="Center"
                    MaximumHeightRequest="500" />
 
 
-            <!-- INFO -->
-            <StackLayout
-                VerticalOptions="End"
-                HorizontalOptions="Center"
-                Spacing="5"
-                Background="Black"
-                Opacity="0.5">
+                    <!-- INFO -->
+                    <StackLayout
+                        VerticalOptions="End"
+                        HorizontalOptions="Center"
+                        Spacing="5"
+                        Background="Black"
+                        Opacity="0.5">
 
-                <Label x:Name="OverlayFileName"
-                   TextColor="White"
-                   FontSize="16"
-                   HorizontalTextAlignment="Center" />
+                        <Label x:Name="OverlayFileName"
+                               TextColor="White"
+                               FontSize="16"
+                               HorizontalTextAlignment="Center" />
 
-                <Label x:Name="OverlayDimensions"
-                   TextColor="White"
-                   FontSize="14"
-                   HorizontalTextAlignment="Center" />
+                        <Label x:Name="OverlayDimensions"
+                               TextColor="White"
+                               FontSize="14"
+                               HorizontalTextAlignment="Center" />
 
-                <Label x:Name="OverlayFileSize"
-                   TextColor="White"
-                   FontSize="14"
-                   HorizontalTextAlignment="Center" />
-            </StackLayout>
+                        <Label x:Name="OverlayFileSize"
+                               TextColor="White"
+                               FontSize="14"
+                               HorizontalTextAlignment="Center" />
+                    </StackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
 
             <Button Text="Close"
                     BackgroundColor="White"

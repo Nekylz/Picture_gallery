@@ -10,6 +10,10 @@ public partial class Gallery : ContentPage
 		InitializeComponent();
 	}
 
+    private string fileNameText = string.Empty;
+    private string imgDimensionsText = string.Empty;
+    private string fileSizeText = string.Empty;
+
     /// <summary>
     /// Handles the event triggered to upload a media file by allowing the user to select a PNG file from the device.
     /// Sets the selected image, file name, dimensions, and file size on the UI.
@@ -24,7 +28,7 @@ public partial class Gallery : ContentPage
             { DevicePlatform.iOS, new[] { "public.png" } },
             { DevicePlatform.Android, new[] { "image/png" } },
             { DevicePlatform.WinUI, new[] { ".png" } },
-            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } } //Handles uppercase files too more robust
+            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } }
         });
 
             var result = await FilePicker.PickAsync(new PickOptions
@@ -44,7 +48,8 @@ public partial class Gallery : ContentPage
                     return;
                 }
 
-                FileName.Text = $"Selected file: {result.FileName}";
+                //FileName.Text = $"Selected file: {result.FileName}";
+                fileNameText = $"Selected file: {result.FileName}";
                 SelectedImage.Source = ImageSource.FromFile(filePath);
                 SelectedImage.IsVisible = true;
 
@@ -71,8 +76,10 @@ public partial class Gallery : ContentPage
                 // Convert to mb as a decimal
                 double fileSizeMB = fileSize / (1024.0 * 1024.0);
 
-                PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-                FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
+                //PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
+                imgDimensionsText = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
+                //FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
+                fileSizeText = $"File Size: {fileSizeMB:F1} MB";
             }
         }
         catch (Exception ex)
@@ -93,9 +100,9 @@ public partial class Gallery : ContentPage
             FullscreenImage.Source = SelectedImage.Source;
 
             // NEW: Update fullscreen labels
-            OverlayFileName.Text = FileName.Text;
-            OverlayDimensions.Text = PhotoDimensions.Text;
-            OverlayFileSize.Text = FileSize.Text;
+            OverlayFileName.Text = fileNameText;
+            OverlayDimensions.Text = imgDimensionsText;
+            OverlayFileSize.Text = fileSizeText;
 
             FullscreenOverlay.IsVisible = true;
         }

@@ -14,9 +14,12 @@
             <MenuFlyoutItem Text="Gallery" Clicked="OnPage2Clicked"/>
         </MenuBarItem>
     </ContentPage.MenuBarItems>
-    <VerticalStackLayout>
-        <ContentView:Header />
-        <ContentView x:Name="SubPage" />
-        <ContentView:Footer />
-    </VerticalStackLayout>
+    <ScrollView VerticalOptions="Fill"
+                HorizontalOptions="Fill">
+        <VerticalStackLayout>
+            <ContentView:Header />
+            <ContentView x:Name="SubPage" />
+            <ContentView:Footer />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>
