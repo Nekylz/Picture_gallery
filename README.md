@@ -5,7 +5,7 @@ During this project we will be working on a desktop-application that provides se
 
 
 ## License
-Copyright 2025 Nekylz
+Copyright 2025 Neotyx
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
