@@ -12,11 +12,8 @@ public partial class Gallery : ContentPage
 
     /// <summary>
     /// Handles the event triggered to upload a media file by allowing the user to select a PNG file from the device.
+    /// Sets the selected image, file name, dimensions, and file size on the UI.
     /// </summary>
-    /// <remarks>This method opens a file picker dialog to allow the user to select a PNG file. The supported
-    /// file types vary by platform: iOS supports "public.png", Android supports "image/png", WinUI supports ".png", and
-    /// macOS supports "png". If a file is selected, its full path is retrieved, and the file name is displayed in the
-    /// associated UI element.</remarks>
     private async void UploadMedia(object sender, EventArgs e)
     {
         try
@@ -85,4 +82,30 @@ public partial class Gallery : ContentPage
                 "OK");
         }
     }
+    /// <summary>
+    /// Handles the event triggered when the fullscreen button is pressed.
+    /// Sets the source of the fullscreen image to the selected image and makes the fullscreen overlay visible.
+    /// </summary>
+    private void FullscreenButton(object sender, EventArgs e)
+    {
+        if (SelectedImage.Source != null)
+        {
+            FullscreenImage.Source = SelectedImage.Source;
+
+            // NEW: Update fullscreen labels
+            OverlayFileName.Text = FileName.Text;
+            OverlayDimensions.Text = PhotoDimensions.Text;
+            OverlayFileSize.Text = FileSize.Text;
+
+            FullscreenOverlay.IsVisible = true;
+        }
+    }
+     /// <summary>
+     /// Closes the fullscreen overlay.
+     /// </summary>
+    private void CloseFullscreen(object sender, EventArgs e)
+    {
+        FullscreenOverlay.IsVisible = false;
+    }
+
 }

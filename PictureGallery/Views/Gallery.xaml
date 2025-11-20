@@ -4,48 +4,110 @@
              x:Class="PictureGallery.Views.Gallery"
              xmlns:ContentView="clr-namespace:PictureGallery.Views"
              Title="Gallery">
-    <VerticalStackLayout>
-        <Label 
+    <Grid>
+        <VerticalStackLayout>
+            <Label 
             Text="Welcome to the Gallery!"
             VerticalOptions="Center" 
             HorizontalOptions="Center" />
 
 
-        <Button
+            <Button
             Text="Upload photo"
             Clicked="UploadMedia"
             VerticalOptions="Center" 
             HorizontalOptions="Center" />
 
-        
-        <!--added image view to xaml -->
-        <Image
-            x:Name="SelectedImage"
-            WidthRequest="250"
-            HeightRequest="250"
-            Aspect="AspectFit"
-            IsVisible="False"
-            VerticalOptions="Center"
-            HorizontalOptions="Center" />
 
-        <Label
+            <!--added image view to xaml -->
+            <Image x:Name="SelectedImage"
+                   HeightRequest="200"
+                   Aspect="AspectFit"
+                   IsVisible="False">
+
+                <Image.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="FullscreenButton" NumberOfTapsRequired="1" />
+                </Image.GestureRecognizers>
+
+            </Image>
+
+
+            <!--
+            <Button
+                    Text="Fullscreen"
+                    Clicked="FullscreenButton"
+                    VerticalOptions="Center" 
+                    HorizontalOptions="Center" />
+            -->
+            
+
+            <Label
             x:Name="FileName"
             Text="No photo selected"
             VerticalOptions="Center"
             HorizontalOptions="Center" />
 
-        <Label
+            <Label
             x:Name="PhotoDimensions"
             Text="No photo dimensions"
             VerticalOptions="Center"
             HorizontalOptions="Center" />
 
-        <Label
+            <Label
             x:Name="FileSize"
             Text="No photo size"
             VerticalOptions="Center"
             HorizontalOptions="Center" />
 
+        </VerticalStackLayout>
 
-    </VerticalStackLayout>
+        <!-- FULLSCREEN OVERLAY -->
+        <Grid x:Name="FullscreenOverlay"
+              BackgroundColor="#CC000000"
+              IsVisible="False"
+              VerticalOptions="Fill"
+              HorizontalOptions="Fill">
+
+            <Image x:Name="FullscreenImage"
+                   Aspect="AspectFit"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center"
+                   MaximumHeightRequest="500" />
+
+
+            <!-- INFO -->
+            <StackLayout
+                VerticalOptions="End"
+                HorizontalOptions="Center"
+                Spacing="5"
+                Background="Black"
+                Opacity="0.5">
+
+                <Label x:Name="OverlayFileName"
+                   TextColor="White"
+                   FontSize="16"
+                   HorizontalTextAlignment="Center" />
+
+                <Label x:Name="OverlayDimensions"
+                   TextColor="White"
+                   FontSize="14"
+                   HorizontalTextAlignment="Center" />
+
+                <Label x:Name="OverlayFileSize"
+                   TextColor="White"
+                   FontSize="14"
+                   HorizontalTextAlignment="Center" />
+            </StackLayout>
+
+            <Button Text="Close"
+                    BackgroundColor="White"
+                    TextColor="Black"
+                    VerticalOptions="Start"
+                    HorizontalOptions="End"
+                    Margin="20"
+                    Clicked="CloseFullscreen" />
+
+        </Grid>
+    </Grid>
+
 </ContentPage>
