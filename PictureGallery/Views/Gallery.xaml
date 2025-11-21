@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PictureGallery.Views.Gallery"
+             xmlns:ContentView="clr-namespace:PictureGallery.Views"
+             Title="Gallery">
+    <Grid>
+        <VerticalStackLayout>
+            <Label 
+            Text="Welcome to the Gallery!"
+            VerticalOptions="Center" 
+            HorizontalOptions="Center" />
+
+
+            <Button
+            Text="Upload photo"
+            Clicked="UploadMedia"
+            VerticalOptions="Center" 
+            HorizontalOptions="Center" />
+
+
+            <!--added image view to xaml -->
+            <Image x:Name="SelectedImage"
+                   HeightRequest="200"
+                   Aspect="AspectFit"
+                   IsVisible="False">
+
+                <Image.GestureRecognizers>
+                    <TapGestureRecognizer Tapped="FullscreenButton" NumberOfTapsRequired="1" />
+                </Image.GestureRecognizers>
+
+            </Image>
+
+
+            <!--
+            <Button
+                    Text="Fullscreen"
+                    Clicked="FullscreenButton"
+                    VerticalOptions="Center" 
+                    HorizontalOptions="Center" />
+            -->
+            
+            <!--
+            <Label
+                x:Name="FileName"
+                Text="No photo selected"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
+
+            <Label
+                x:Name="PhotoDimensions"
+                Text="No photo dimensions"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
+
+            <Label
+                x:Name="FileSize"
+                Text="No photo size"
+                VerticalOptions="Center"
+                HorizontalOptions="Center" />
+            -->
+
+        </VerticalStackLayout>
+
+        <!-- FULLSCREEN OVERLAY -->
+        <Grid x:Name="FullscreenOverlay"
+              BackgroundColor="#CC000000"
+              IsVisible="False"
+              VerticalOptions="Fill"
+              HorizontalOptions="Fill">
+
+            <!-- Scrollable content -->
+            <ScrollView VerticalOptions="Fill"
+                        HorizontalOptions="Fill">
+
+                <!-- Stack image + info vertically -->
+                <VerticalStackLayout VerticalOptions="Center"
+                         HorizontalOptions="Center"
+                         Spacing="10"
+                         Padding="20">
+
+                    <Image x:Name="FullscreenImage"
+                   Aspect="AspectFit"
+                   VerticalOptions="Center"
+                   HorizontalOptions="Center"
+                   MaximumHeightRequest="500" />
+
+
+                    <!-- INFO -->
+                    <StackLayout
+                        VerticalOptions="End"
+                        HorizontalOptions="Center"
+                        Spacing="5"
+                        Background="Black"
+                        Opacity="0.5">
+
+                        <Label x:Name="OverlayFileName"
+                               TextColor="White"
+                               FontSize="16"
+                               HorizontalTextAlignment="Center" />
+
+                        <Label x:Name="OverlayDimensions"
+                               TextColor="White"
+                               FontSize="14"
+                               HorizontalTextAlignment="Center" />
+
+                        <Label x:Name="OverlayFileSize"
+                               TextColor="White"
+                               FontSize="14"
+                               HorizontalTextAlignment="Center" />
+                    </StackLayout>
+                </VerticalStackLayout>
+            </ScrollView>
+
+            <Button Text="Close"
+                    BackgroundColor="White"
+                    TextColor="Black"
+                    VerticalOptions="Start"
+                    HorizontalOptions="End"
+                    Margin="20"
+                    Clicked="CloseFullscreen" />
+
+        </Grid>
+    </Grid>
+
+</ContentPage>
