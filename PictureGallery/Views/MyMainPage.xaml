@@ -6,15 +6,20 @@
              Title="MyMainPage">
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Page1" Clicked="OnPage1Clicked"/>
+        <ToolbarItem Text="Gallery" Clicked="OnPage2Clicked"/>
     </ContentPage.ToolbarItems>
     <ContentPage.MenuBarItems>
         <MenuBarItem Text="Pages">
             <MenuFlyoutItem Text="Page1" Clicked="OnPage1Clicked"/>
+            <MenuFlyoutItem Text="Gallery" Clicked="OnPage2Clicked"/>
         </MenuBarItem>
     </ContentPage.MenuBarItems>
-    <VerticalStackLayout>
-        <ContentView:Header />
-        <ContentView x:Name="SubPage" />
-        <ContentView:Footer />
-    </VerticalStackLayout>
+    <ScrollView VerticalOptions="Fill"
+                HorizontalOptions="Fill">
+        <VerticalStackLayout>
+            <ContentView:Header />
+            <ContentView x:Name="SubPage" />
+            <ContentView:Footer />
+        </VerticalStackLayout>
+    </ScrollView>
 </ContentPage>
