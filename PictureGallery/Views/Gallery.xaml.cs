@@ -1,4 +1,5 @@
-using ExifLib;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Storage;
 using SkiaSharp;
 
 namespace PictureGallery.Views;
@@ -22,30 +23,67 @@ public partial class Gallery : ContentPage
     {
         try
         {
-            var pngFileType = new FilePickerFileType(
-        new Dictionary<DevicePlatform, IEnumerable<string>>
-        {
-            { DevicePlatform.iOS, new[] { "public.png" } },
-            { DevicePlatform.Android, new[] { "image/png" } },
-            { DevicePlatform.WinUI, new[] { ".png" } },
-            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } }
-        });
-
-            var result = await FilePicker.PickAsync(new PickOptions
+            if (DeviceInfo.Platform == DevicePlatform.MacCatalyst)
             {
-                FileTypes = pngFileType,
-                PickerTitle = "Select a PNG file"
-            });
+                var status = await Permissions.CheckStatusAsync<Permissions.StorageRead>();
+                if (status != PermissionStatus.Granted)
+                {
+                    status = await Permissions.RequestAsync<Permissions.StorageRead>();
+                    if (status != PermissionStatus.Granted)
+                    {
+                        await DisplayAlert("Toegang geweigerd",
+                            "Bestandstoegang is nodig om een foto te kunnen kiezen.",
+                            "OK");
+                        return;
+                    }
+                }
+            }
+
+            FileResult? result = null;
+
+            try
+            {
+                result = await MainThread.InvokeOnMainThreadAsync(async () =>
+                {
+                    return await FilePicker.Default.PickAsync(new PickOptions
+                    {
+                        FileTypes = FilePickerFileType.Images,
+                        PickerTitle = "Select an image"
+                    });
+                });
+            }
+            catch (FeatureNotSupportedException)
+            {
+                await DisplayAlert("Niet ondersteund", "Bestanden kiezen wordt niet ondersteund op dit apparaat.", "OK");
+                return;
+            }
+            catch (PermissionException)
+            {
+                await DisplayAlert("Toegang geweigerd", "Bestandstoegang is geweigerd.", "OK");
+                return;
+            }
+            catch (Exception pickerEx)
+            {
+                await DisplayAlert("Foutmelding", $"Kon de bestandskiezer niet openen.\n\n{pickerEx.Message}", "OK");
+                return;
+            }
 
             if (result != null)
             {
+                if (!Path.GetExtension(result.FileName).Equals(".png", StringComparison.OrdinalIgnoreCase))
+                {
+                    await DisplayAlert("Ongeldig bestand", "Selecteer een PNG-bestand.", "OK");
+                    return;
+                }
                 var filePath = result.FullPath;
 
-                if (!File.Exists(filePath)) {
-                    await DisplayAlert("Foutmelding",
-                        "Het geselecteerde bestand kon niet worden gevonden.",
-                        "OK");
-                    return;
+                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                {
+                    // On iOS/MacCatalyst the picker often returns a stream without a filesystem path.
+                    await using var pickedStream = await result.OpenReadAsync();
+                    filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
+                    await using var tempFile = File.Create(filePath);
+                    await pickedStream.CopyToAsync(tempFile);
                 }
 
                 //FileName.Text = $"Selected file: {result.FileName}";
