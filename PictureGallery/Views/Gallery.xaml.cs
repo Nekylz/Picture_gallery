@@ -1,19 +1,40 @@
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PictureGallery.Views;
 
+public class PhotoItem
+{
+    public string FileName { get; set; } = string.Empty;
+    public int Width { get; set; }
+    public int Height { get; set; }
+    public double FileSizeMb { get; set; }
+    public string FilePath { get; set; } = string.Empty;
+    public ImageSource? ImageSource { get; set; }
+
+    public string DimensionsText => $"Image Dimensions: {Width} x {Height}";
+    public string FileSizeText => $"File Size: {FileSizeMb:F1} MB";
+}
+
 public partial class Gallery : ContentPage
 {
+    private static readonly string[] AllowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
+    public ObservableCollection<PhotoItem> Photos { get; } = new();
+
 	public Gallery()
 	{
 		InitializeComponent();
+        BindingContext = this;
 	}
 
-    private string fileNameText = string.Empty;
-    private string imgDimensionsText = string.Empty;
-    private string fileSizeText = string.Empty;
+    private PhotoItem? currentPhoto;
 
     /// <summary>
     /// Handles the event triggered to upload a media file by allowing the user to select a PNG file from the device.
@@ -39,16 +60,16 @@ public partial class Gallery : ContentPage
                 }
             }
 
-            FileResult? result = null;
+            IEnumerable<FileResult>? results = null;
 
             try
             {
-                result = await MainThread.InvokeOnMainThreadAsync(async () =>
+                results = await MainThread.InvokeOnMainThreadAsync(async () =>
                 {
-                    return await FilePicker.Default.PickAsync(new PickOptions
+                    return await FilePicker.Default.PickMultipleAsync(new PickOptions
                     {
                         FileTypes = FilePickerFileType.Images,
-                        PickerTitle = "Select an image"
+                        PickerTitle = "Select images (PNG / JPG)"
                     });
                 });
             }
@@ -68,56 +89,51 @@ public partial class Gallery : ContentPage
                 return;
             }
 
-            if (result != null)
+            if (results != null && results.Any())
             {
-                if (!Path.GetExtension(result.FileName).Equals(".png", StringComparison.OrdinalIgnoreCase))
-                {
-                    await DisplayAlert("Ongeldig bestand", "Selecteer een PNG-bestand.", "OK");
-                    return;
-                }
-                var filePath = result.FullPath;
+                var addedPhotos = new List<PhotoItem>();
 
-                if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
+                foreach (var result in results)
                 {
-                    // On iOS/MacCatalyst the picker often returns a stream without a filesystem path.
-                    await using var pickedStream = await result.OpenReadAsync();
-                    filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
-                    await using var tempFile = File.Create(filePath);
-                    await pickedStream.CopyToAsync(tempFile);
-                }
-
-                //FileName.Text = $"Selected file: {result.FileName}";
-                fileNameText = $"Selected file: {result.FileName}";
-                SelectedImage.Source = ImageSource.FromFile(filePath);
-                SelectedImage.IsVisible = true;
-
-                // Get image dimensions for PNG
-                int width = 0;
-                int height = 0;
-                using (var stream = File.OpenRead(filePath))
-                {
-                    using (var bitmap = SKBitmap.Decode(stream))
+                    if (!IsSupportedImage(result.FileName))
                     {
-                        if (bitmap != null)
-                        {
-                            width = bitmap.Width;
-                            height = bitmap.Height;
-                        }
+                        continue;
+                    }
+
+                    var photo = await CreatePhotoItemAsync(result);
+                    if (photo != null)
+                    {
+                        addedPhotos.Add(photo);
                     }
                 }
 
-                var imageDimensions = (width, height);
+                if (addedPhotos.Count == 0)
+                {
+                    await DisplayAlert("Geen geldige bestanden", "Selecteer minimaal één PNG- of JPG-bestand.", "OK");
+                    return;
+                }
 
-                // Get file size in bytes
-                long fileSize = new FileInfo(filePath).Length;
+                // Add all photos to collection on main thread to ensure UI updates
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    foreach (var photo in addedPhotos)
+                    {
+                        Photos.Add(photo);
+                    }
+                    
+                    // Update photo count label
+                    PhotoCountLabel.IsVisible = Photos.Count > 0;
+                    
+                    // Debug: Check collection count
+                    System.Diagnostics.Debug.WriteLine($"Total photos in collection: {Photos.Count}");
+                    
+                    // Force CollectionView to refresh
+                    PhotosCollection.ItemsSource = null;
+                    PhotosCollection.ItemsSource = Photos;
+                });
 
-                // Convert to mb as a decimal
-                double fileSizeMB = fileSize / (1024.0 * 1024.0);
-
-                //PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-                imgDimensionsText = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-                //FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
-                fileSizeText = $"File Size: {fileSizeMB:F1} MB";
+                // Keep reference to the last added photo (optional for future actions)
+                currentPhoto = addedPhotos.Last();
             }
         }
         catch (Exception ex)
@@ -127,30 +143,80 @@ public partial class Gallery : ContentPage
                 "OK");
         }
     }
-    /// <summary>
-    /// Handles the event triggered when the fullscreen button is pressed.
-    /// Sets the source of the fullscreen image to the selected image and makes the fullscreen overlay visible.
-    /// </summary>
-    private void FullscreenButton(object sender, EventArgs e)
+    private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult result)
     {
-        if (SelectedImage.Source != null)
+        var filePath = result.FullPath;
+
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            FullscreenImage.Source = SelectedImage.Source;
-
-            // NEW: Update fullscreen labels
-            OverlayFileName.Text = fileNameText;
-            OverlayDimensions.Text = imgDimensionsText;
-            OverlayFileSize.Text = fileSizeText;
-
-            FullscreenOverlay.IsVisible = true;
+            await using var pickedStream = await result.OpenReadAsync();
+            filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
+            await using var tempFile = File.Create(filePath);
+            await pickedStream.CopyToAsync(tempFile);
         }
+
+        int width = 0;
+        int height = 0;
+        using (var stream = File.OpenRead(filePath))
+        using (var bitmap = SKBitmap.Decode(stream))
+        {
+            if (bitmap != null)
+            {
+                width = bitmap.Width;
+                height = bitmap.Height;
+            }
+        }
+
+        var fileSize = new FileInfo(filePath).Length;
+        var fileSizeMB = fileSize / (1024.0 * 1024.0);
+
+        return new PhotoItem
+        {
+            FileName = result.FileName,
+            FilePath = filePath,
+            ImageSource = ImageSource.FromFile(filePath),
+            Width = width,
+            Height = height,
+            FileSizeMb = fileSizeMB
+        };
     }
-     /// <summary>
-     /// Closes the fullscreen overlay.
-     /// </summary>
+
     private void CloseFullscreen(object sender, EventArgs e)
     {
         FullscreenOverlay.IsVisible = false;
     }
 
+    private void OnPhotoTapped(object sender, TappedEventArgs e)
+    {
+        if (e.Parameter is PhotoItem tappedPhoto)
+        {
+            currentPhoto = tappedPhoto;
+            ShowPhotoOverlay(tappedPhoto);
+        }
+    }
+
+    private void ShowPhotoOverlay(PhotoItem photo)
+    {
+        if (photo.ImageSource == null)
+        {
+            return;
+        }
+
+        FullscreenImage.Source = photo.ImageSource;
+        OverlayFileName.Text = photo.FileName;
+        OverlayDimensions.Text = photo.DimensionsText;
+        OverlayFileSize.Text = photo.FileSizeText;
+        FullscreenOverlay.IsVisible = true;
+    }
+
+    private bool IsSupportedImage(string fileName)
+    {
+        var extension = Path.GetExtension(fileName);
+        if (string.IsNullOrWhiteSpace(extension))
+        {
+            return false;
+        }
+
+        return AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
 }

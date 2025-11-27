@@ -6,7 +6,7 @@
              >
     <VerticalStackLayout>
         <Label 
-            Text="Header"
+            Text=""
             VerticalOptions="Center" 
             HorizontalOptions="Center" />
     </VerticalStackLayout>

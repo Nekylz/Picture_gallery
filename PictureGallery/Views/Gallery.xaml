@@ -5,60 +5,76 @@
              xmlns:ContentView="clr-namespace:PictureGallery.Views"
              Title="Gallery">
     <Grid>
-        <VerticalStackLayout>
-            <Label 
-            Text="Welcome to the Gallery!"
-            VerticalOptions="Center" 
-            HorizontalOptions="Center" />
+        <VerticalStackLayout Padding="20" Spacing="12">
+            <Grid ColumnDefinitions="Auto,*">
+                <Label 
+                Text="Photo Gallery"
+                FontSize="32"
+                FontAttributes="Bold"
+                HorizontalOptions="Start"
+                VerticalOptions="Center" />
 
+                <HorizontalStackLayout Grid.Column="1"
+                                       Spacing="10"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center">
+                    <Button Text="Filter: Label"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12" />
+                    <Button Text="Newest ↑"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12" />
+                    <Frame HeightRequest="40"
+                           WidthRequest="40"
+                           BackgroundColor="#EDEDED"
+                           CornerRadius="20" />
+                </HorizontalStackLayout>
+            </Grid>
 
             <Button
             Text="Upload photo"
             Clicked="UploadMedia"
-            VerticalOptions="Center" 
-            HorizontalOptions="Center" />
+            HorizontalOptions="Center"
+            BackgroundColor="#6750A4"
+            TextColor="White"
+            CornerRadius="20"
+            Padding="20,10" />
 
+            <Label x:Name="PhotoCountLabel"
+                   Text="{Binding Photos.Count, StringFormat='Fotos: {0}'}"
+                   HorizontalOptions="Start"
+                   Margin="0,5,0,0"
+                   IsVisible="False" />
 
-            <!--added image view to xaml -->
-            <Image x:Name="SelectedImage"
-                   HeightRequest="200"
-                   Aspect="AspectFit"
-                   IsVisible="False">
+            <CollectionView x:Name="PhotosCollection"
+                            ItemsSource="{Binding Photos}"
+                            Margin="0,10,0,0">
+                <CollectionView.ItemsLayout>
+                    <GridItemsLayout Orientation="Vertical" Span="4" />
+                </CollectionView.ItemsLayout>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Padding="5" Margin="5"
+                               HasShadow="False"
+                               BorderColor="#E0E0E0"
+                               CornerRadius="12">
+                            <Image Source="{Binding ImageSource}"
+                                   Aspect="AspectFill"
+                                   HeightRequest="90"
+                                   WidthRequest="90">
+                                <Image.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPhotoTapped"
+                                                          NumberOfTapsRequired="1"
+                                                          CommandParameter="{Binding .}" />
+                                </Image.GestureRecognizers>
+                            </Image>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
 
-                <Image.GestureRecognizers>
-                    <TapGestureRecognizer Tapped="FullscreenButton" NumberOfTapsRequired="1" />
-                </Image.GestureRecognizers>
-
-            </Image>
-
-
-            <!--
-            <Button
-                    Text="Fullscreen"
-                    Clicked="FullscreenButton"
-                    VerticalOptions="Center" 
-                    HorizontalOptions="Center" />
-            -->
-            
-            <!--
-            <Label
-                x:Name="FileName"
-                Text="No photo selected"
-                VerticalOptions="Center"
-                HorizontalOptions="Center" />
-
-            <Label
-                x:Name="PhotoDimensions"
-                Text="No photo dimensions"
-                VerticalOptions="Center"
-                HorizontalOptions="Center" />
-
-            <Label
-                x:Name="FileSize"
-                Text="No photo size"
-                VerticalOptions="Center"
-                HorizontalOptions="Center" />
-            -->
 
         </VerticalStackLayout>
 
