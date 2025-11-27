@@ -34,5 +34,9 @@
 	</array>
 	<key>XSAppIconAssets</key>
 	<string>Assets.xcassets/appicon.appiconset</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PictureGallery heeft toegang nodig tot je fotobibliotheek om afbeeldingen te uploaden.</string>
+	<key>NSDocumentsFolderUsageDescription</key>
+	<string>PictureGallery gebruikt de documentenmap wanneer je een foto kiest om te uploaden.</string>
 </dict>
 </plist>

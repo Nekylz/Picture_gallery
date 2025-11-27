@@ -1,118 +1,164 @@
-using ExifLib;
+using Microsoft.Maui.ApplicationModel;
+using Microsoft.Maui.Storage;
 using SkiaSharp;
+using System;
+using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace PictureGallery.Views;
 
 public partial class Gallery : ContentPage
 {
-	public Gallery()
-	{
-		InitializeComponent();
-	}
+    private static readonly string[] AllowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
+    public ObservableCollection<PhotoItem> Photos { get; } = new();
 
-    private string fileNameText = string.Empty;
-    private string imgDimensionsText = string.Empty;
-    private string fileSizeText = string.Empty;
+    private PhotoItem? currentPhoto;
 
-    /// <summary>
-    /// Handles the event triggered to upload a media file by allowing the user to select a PNG file from the device.
-    /// Sets the selected image, file name, dimensions, and file size on the UI.
-    /// </summary>
+    public Gallery()
+    {
+        InitializeComponent();
+        BindingContext = this;
+    }
+
     private async void UploadMedia(object sender, EventArgs e)
     {
         try
         {
-            var pngFileType = new FilePickerFileType(
-        new Dictionary<DevicePlatform, IEnumerable<string>>
-        {
-            { DevicePlatform.iOS, new[] { "public.png" } },
-            { DevicePlatform.Android, new[] { "image/png" } },
-            { DevicePlatform.WinUI, new[] { ".png" } },
-            { DevicePlatform.MacCatalyst, new[] { "png", "PNG" } }
-        });
-
-            var result = await FilePicker.PickAsync(new PickOptions
+            IEnumerable<FileResult>? results = await FilePicker.Default.PickMultipleAsync(new PickOptions
             {
-                FileTypes = pngFileType,
-                PickerTitle = "Select a PNG file"
+                FileTypes = FilePickerFileType.Images,
+                PickerTitle = "Select images (PNG / JPG)"
             });
 
-            if (result != null)
+            if (results != null && results.Any())
             {
-                var filePath = result.FullPath;
+                var addedPhotos = new List<PhotoItem>();
 
-                if (!File.Exists(filePath)) {
-                    await DisplayAlert("Foutmelding",
-                        "Het geselecteerde bestand kon niet worden gevonden.",
-                        "OK");
-                    return;
-                }
-
-                //FileName.Text = $"Selected file: {result.FileName}";
-                fileNameText = $"Selected file: {result.FileName}";
-                SelectedImage.Source = ImageSource.FromFile(filePath);
-                SelectedImage.IsVisible = true;
-
-                // Get image dimensions for PNG
-                int width = 0;
-                int height = 0;
-                using (var stream = File.OpenRead(filePath))
+                foreach (var result in results)
                 {
-                    using (var bitmap = SKBitmap.Decode(stream))
-                    {
-                        if (bitmap != null)
-                        {
-                            width = bitmap.Width;
-                            height = bitmap.Height;
-                        }
-                    }
+                    if (!IsSupportedImage(result.FileName))
+                        continue;
+
+                    var photo = await CreatePhotoItemAsync(result);
+                    if (photo != null)
+                        addedPhotos.Add(photo);
                 }
 
-                var imageDimensions = (width, height);
+                foreach (var photo in addedPhotos)
+                    Photos.Add(photo);
 
-                // Get file size in bytes
-                long fileSize = new FileInfo(filePath).Length;
+                PhotoCountLabel.IsVisible = Photos.Count > 0;
+                PhotosCollection.ItemsSource = null;
+                PhotosCollection.ItemsSource = Photos;
 
-                // Convert to mb as a decimal
-                double fileSizeMB = fileSize / (1024.0 * 1024.0);
-
-                //PhotoDimensions.Text = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-                imgDimensionsText = $"Image Dimensions: {imageDimensions.width} x {imageDimensions.height}";
-                //FileSize.Text = $"File Size: {fileSizeMB:F1} MB";
-                fileSizeText = $"File Size: {fileSizeMB:F1} MB";
+                currentPhoto = addedPhotos.LastOrDefault();
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Foutmelding",
-                $"Er ging iets mis tijdens het uploaden.\n\nError: {ex.Message}",
-                "OK");
+            await DisplayAlert("Error", ex.Message, "OK");
         }
     }
-    /// <summary>
-    /// Handles the event triggered when the fullscreen button is pressed.
-    /// Sets the source of the fullscreen image to the selected image and makes the fullscreen overlay visible.
-    /// </summary>
-    private void FullscreenButton(object sender, EventArgs e)
+
+    private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult result)
     {
-        if (SelectedImage.Source != null)
+        var filePath = result.FullPath;
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            FullscreenImage.Source = SelectedImage.Source;
+            await using var pickedStream = await result.OpenReadAsync();
+            filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
+            await using var tempFile = File.Create(filePath);
+            await pickedStream.CopyToAsync(tempFile);
+        }
 
-            // NEW: Update fullscreen labels
-            OverlayFileName.Text = fileNameText;
-            OverlayDimensions.Text = imgDimensionsText;
-            OverlayFileSize.Text = fileSizeText;
+        int width = 0, height = 0;
+        using (var stream = File.OpenRead(filePath))
+        using (var bitmap = SKBitmap.Decode(stream))
+        {
+            if (bitmap != null)
+            {
+                width = bitmap.Width;
+                height = bitmap.Height;
+            }
+        }
 
-            FullscreenOverlay.IsVisible = true;
+        var fileSize = new FileInfo(filePath).Length;
+        var fileSizeMB = fileSize / (1024.0 * 1024.0);
+
+        return new PhotoItem
+        {
+            FileName = result.FileName,
+            FilePath = filePath,
+            ImageSource = ImageSource.FromFile(filePath),
+            Width = width,
+            Height = height,
+            FileSizeMb = fileSizeMB
+        };
+    }
+
+    private void OnPhotoTapped(object sender, TappedEventArgs e)
+    {
+        if (e.Parameter is PhotoItem tappedPhoto)
+        {
+            currentPhoto = tappedPhoto;
+            ShowPhotoOverlay(tappedPhoto);
         }
     }
-     /// <summary>
-     /// Closes the fullscreen overlay.
-     /// </summary>
+
+    private void ShowPhotoOverlay(PhotoItem photo)
+    {
+        if (photo.ImageSource == null)
+            return;
+
+        FullscreenImage.Source = photo.ImageSource;
+        OverlayFileName.Text = photo.FileName;
+        OverlayDimensions.Text = photo.DimensionsText;
+        OverlayFileSize.Text = photo.FileSizeText;
+        FullscreenOverlay.IsVisible = true;
+
+        DisplayLabels(photo);
+    }
+
     private void CloseFullscreen(object sender, EventArgs e)
     {
         FullscreenOverlay.IsVisible = false;
     }
 
+    private void AddLabelButton_Clicked(object sender, EventArgs e)
+    {
+        if (currentPhoto == null)
+            return;
+
+        var newLabel = LabelEntry.Text?.Trim();
+        if (!string.IsNullOrEmpty(newLabel))
+        {
+            currentPhoto.Labels.Add(newLabel);
+            LabelEntry.Text = string.Empty;
+            DisplayLabels(currentPhoto);
+        }
+    }
+
+    private void DisplayLabels(PhotoItem photo)
+    {
+        LabelContainer.Children.Clear();
+        foreach (var label in photo.Labels)
+        {
+            LabelContainer.Children.Add(new Label
+            {
+                Text = label,
+                BackgroundColor = Colors.LightGray,
+                TextColor = Colors.Black,
+                Padding = new Thickness(5)
+            });
+        }
+    }
+
+    private bool IsSupportedImage(string fileName)
+    {
+        var extension = Path.GetExtension(fileName);
+        return !string.IsNullOrWhiteSpace(extension) && AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
 }
