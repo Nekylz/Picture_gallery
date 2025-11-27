@@ -50,6 +50,8 @@
                    HorizontalOptions="Start"
                    Margin="0,5,0,0"
                    IsVisible="False" />
+     
+
 
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"

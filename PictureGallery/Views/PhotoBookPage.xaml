@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PictureGallery.Views.PhotoBookPage"
+             Title="Fotoboek">
+
+    <VerticalStackLayout Padding="20" Spacing="10">
+
+        <!-- Template Picker -->
+        <Picker x:Name="TemplatePicker" Title="Selecteer template" />
+
+        <!-- Add Photo knop -->
+        <Button Text="Voeg foto toe" Clicked="AddPhoto_Clicked" />
+
+        <!-- Pagina overzicht -->
+        <CollectionView x:Name="PagesCollectionView"
+                        ItemsSource="{Binding PhotoBook.Pages}">
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Frame Padding="5" Margin="5" BorderColor="#E0E0E0" CornerRadius="10">
+                        <StackLayout>
+                            <Image Source="{Binding Photo.ImageSource}" HeightRequest="150" Aspect="AspectFit"/>
+                            <Entry Text="{Binding Title}" Placeholder="Voeg titel/tekst toe"/>
+                            <HorizontalStackLayout Spacing="5">
+                                <Button Text="Verwijder" Clicked="RemovePage_Clicked"/>
+                                <Button Text="Omhoog" Clicked="MoveUp_Clicked"/>
+                                <Button Text="Omlaag" Clicked="MoveDown_Clicked"/>
+                            </HorizontalStackLayout>
+                        </StackLayout>
+                    </Frame>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+        </CollectionView>
+
+    </VerticalStackLayout>
+</ContentPage>
