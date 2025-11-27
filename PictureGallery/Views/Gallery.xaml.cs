@@ -10,84 +10,28 @@ using System.Threading.Tasks;
 
 namespace PictureGallery.Views;
 
-public class PhotoItem
-{
-    public string FileName { get; set; } = string.Empty;
-    public int Width { get; set; }
-    public int Height { get; set; }
-    public double FileSizeMb { get; set; }
-    public string FilePath { get; set; } = string.Empty;
-    public ImageSource? ImageSource { get; set; }
-
-    public string DimensionsText => $"Image Dimensions: {Width} x {Height}";
-    public string FileSizeText => $"File Size: {FileSizeMb:F1} MB";
-}
-
 public partial class Gallery : ContentPage
 {
     private static readonly string[] AllowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
     public ObservableCollection<PhotoItem> Photos { get; } = new();
 
-	public Gallery()
-	{
-		InitializeComponent();
-        BindingContext = this;
-	}
-
     private PhotoItem? currentPhoto;
 
-    /// <summary>
-    /// Handles the event triggered to upload a media file by allowing the user to select a PNG file from the device.
-    /// Sets the selected image, file name, dimensions, and file size on the UI.
-    /// </summary>
+    public Gallery()
+    {
+        InitializeComponent();
+        BindingContext = this;
+    }
+
     private async void UploadMedia(object sender, EventArgs e)
     {
         try
         {
-            if (DeviceInfo.Platform == DevicePlatform.MacCatalyst)
+            IEnumerable<FileResult>? results = await FilePicker.Default.PickMultipleAsync(new PickOptions
             {
-                var status = await Permissions.CheckStatusAsync<Permissions.StorageRead>();
-                if (status != PermissionStatus.Granted)
-                {
-                    status = await Permissions.RequestAsync<Permissions.StorageRead>();
-                    if (status != PermissionStatus.Granted)
-                    {
-                        await DisplayAlert("Toegang geweigerd",
-                            "Bestandstoegang is nodig om een foto te kunnen kiezen.",
-                            "OK");
-                        return;
-                    }
-                }
-            }
-
-            IEnumerable<FileResult>? results = null;
-
-            try
-            {
-                results = await MainThread.InvokeOnMainThreadAsync(async () =>
-                {
-                    return await FilePicker.Default.PickMultipleAsync(new PickOptions
-                    {
-                        FileTypes = FilePickerFileType.Images,
-                        PickerTitle = "Select images (PNG / JPG)"
-                    });
-                });
-            }
-            catch (FeatureNotSupportedException)
-            {
-                await DisplayAlert("Niet ondersteund", "Bestanden kiezen wordt niet ondersteund op dit apparaat.", "OK");
-                return;
-            }
-            catch (PermissionException)
-            {
-                await DisplayAlert("Toegang geweigerd", "Bestandstoegang is geweigerd.", "OK");
-                return;
-            }
-            catch (Exception pickerEx)
-            {
-                await DisplayAlert("Foutmelding", $"Kon de bestandskiezer niet openen.\n\n{pickerEx.Message}", "OK");
-                return;
-            }
+                FileTypes = FilePickerFileType.Images,
+                PickerTitle = "Select images (PNG / JPG)"
+            });
 
             if (results != null && results.Any())
             {
@@ -96,57 +40,32 @@ public partial class Gallery : ContentPage
                 foreach (var result in results)
                 {
                     if (!IsSupportedImage(result.FileName))
-                    {
                         continue;
-                    }
 
                     var photo = await CreatePhotoItemAsync(result);
                     if (photo != null)
-                    {
                         addedPhotos.Add(photo);
-                    }
                 }
 
-                if (addedPhotos.Count == 0)
-                {
-                    await DisplayAlert("Geen geldige bestanden", "Selecteer minimaal één PNG- of JPG-bestand.", "OK");
-                    return;
-                }
+                foreach (var photo in addedPhotos)
+                    Photos.Add(photo);
 
-                // Add all photos to collection on main thread to ensure UI updates
-                await MainThread.InvokeOnMainThreadAsync(() =>
-                {
-                    foreach (var photo in addedPhotos)
-                    {
-                        Photos.Add(photo);
-                    }
-                    
-                    // Update photo count label
-                    PhotoCountLabel.IsVisible = Photos.Count > 0;
-                    
-                    // Debug: Check collection count
-                    System.Diagnostics.Debug.WriteLine($"Total photos in collection: {Photos.Count}");
-                    
-                    // Force CollectionView to refresh
-                    PhotosCollection.ItemsSource = null;
-                    PhotosCollection.ItemsSource = Photos;
-                });
+                PhotoCountLabel.IsVisible = Photos.Count > 0;
+                PhotosCollection.ItemsSource = null;
+                PhotosCollection.ItemsSource = Photos;
 
-                // Keep reference to the last added photo (optional for future actions)
-                currentPhoto = addedPhotos.Last();
+                currentPhoto = addedPhotos.LastOrDefault();
             }
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Foutmelding",
-                $"Er ging iets mis tijdens het uploaden.\n\nError: {ex.Message}",
-                "OK");
+            await DisplayAlert("Error", ex.Message, "OK");
         }
     }
+
     private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult result)
     {
         var filePath = result.FullPath;
-
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
             await using var pickedStream = await result.OpenReadAsync();
@@ -155,8 +74,7 @@ public partial class Gallery : ContentPage
             await pickedStream.CopyToAsync(tempFile);
         }
 
-        int width = 0;
-        int height = 0;
+        int width = 0, height = 0;
         using (var stream = File.OpenRead(filePath))
         using (var bitmap = SKBitmap.Decode(stream))
         {
@@ -181,11 +99,6 @@ public partial class Gallery : ContentPage
         };
     }
 
-    private void CloseFullscreen(object sender, EventArgs e)
-    {
-        FullscreenOverlay.IsVisible = false;
-    }
-
     private void OnPhotoTapped(object sender, TappedEventArgs e)
     {
         if (e.Parameter is PhotoItem tappedPhoto)
@@ -198,25 +111,54 @@ public partial class Gallery : ContentPage
     private void ShowPhotoOverlay(PhotoItem photo)
     {
         if (photo.ImageSource == null)
-        {
             return;
-        }
 
         FullscreenImage.Source = photo.ImageSource;
         OverlayFileName.Text = photo.FileName;
         OverlayDimensions.Text = photo.DimensionsText;
         OverlayFileSize.Text = photo.FileSizeText;
         FullscreenOverlay.IsVisible = true;
+
+        DisplayLabels(photo);
+    }
+
+    private void CloseFullscreen(object sender, EventArgs e)
+    {
+        FullscreenOverlay.IsVisible = false;
+    }
+
+    private void AddLabelButton_Clicked(object sender, EventArgs e)
+    {
+        if (currentPhoto == null)
+            return;
+
+        var newLabel = LabelEntry.Text?.Trim();
+        if (!string.IsNullOrEmpty(newLabel))
+        {
+            currentPhoto.Labels.Add(newLabel);
+            LabelEntry.Text = string.Empty;
+            DisplayLabels(currentPhoto);
+        }
+    }
+
+    private void DisplayLabels(PhotoItem photo)
+    {
+        LabelContainer.Children.Clear();
+        foreach (var label in photo.Labels)
+        {
+            LabelContainer.Children.Add(new Label
+            {
+                Text = label,
+                BackgroundColor = Colors.LightGray,
+                TextColor = Colors.Black,
+                Padding = new Thickness(5)
+            });
+        }
     }
 
     private bool IsSupportedImage(string fileName)
     {
         var extension = Path.GetExtension(fileName);
-        if (string.IsNullOrWhiteSpace(extension))
-        {
-            return false;
-        }
-
-        return AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        return !string.IsNullOrWhiteSpace(extension) && AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 }
