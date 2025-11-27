@@ -19,4 +19,5 @@ public partial class MyMainPage : ContentPage
         SubPage.Content = new ContentView { Content = new Views.Gallery().Content };
     }
 
+
 }
