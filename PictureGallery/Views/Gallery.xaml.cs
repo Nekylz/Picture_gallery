@@ -146,13 +146,64 @@ public partial class Gallery : ContentPage
         LabelContainer.Children.Clear();
         foreach (var label in photo.Labels)
         {
-            LabelContainer.Children.Add(new Label
-            {
-                Text = label,
-                BackgroundColor = Colors.LightGray,
-                TextColor = Colors.Black,
-                Padding = new Thickness(5)
-            });
+            LabelContainer.Children.Add(CreateLabelChip(label));
+        }
+    }
+
+    private View CreateLabelChip(string label)
+    {
+        var textLabel = new Label
+        {
+            Text = label,
+            FontSize = 16,
+            TextColor = Colors.Black,
+            VerticalOptions = LayoutOptions.Center
+        };
+
+        var removeButton = new Button
+        {
+            Text = "×",
+            WidthRequest = 22,
+            HeightRequest = 22,
+            FontAttributes = FontAttributes.Bold,
+            FontSize = 12,
+            CornerRadius = 11,
+            Padding = 0,
+            BackgroundColor = Color.FromArgb("#E0E0E0"),
+            TextColor = Colors.Black,
+            CommandParameter = label,
+            Margin = new Thickness(4, 0, 0, 0)
+        };
+        removeButton.Clicked += RemoveLabelButton_Clicked;
+
+        var horizontal = new HorizontalStackLayout
+        {
+            Spacing = 6,
+            VerticalOptions = LayoutOptions.Center
+        };
+        horizontal.Children.Add(textLabel);
+        horizontal.Children.Add(removeButton);
+
+        return new Frame
+        {
+            Padding = new Thickness(14, 8),
+            Margin = new Thickness(0, 0, 8, 0),
+            BackgroundColor = Color.FromArgb("#F5F5F5"),
+            CornerRadius = 20,
+            HasShadow = false,
+            Content = horizontal
+        };
+    }
+
+    private void RemoveLabelButton_Clicked(object? sender, EventArgs e)
+    {
+        if (sender is Button button &&
+            button.CommandParameter is string label &&
+            currentPhoto != null &&
+            currentPhoto.Labels.Contains(label))
+        {
+            currentPhoto.Labels.Remove(label);
+            DisplayLabels(currentPhoto);
         }
     }
 
@@ -160,5 +211,32 @@ public partial class Gallery : ContentPage
     {
         var extension = Path.GetExtension(fileName);
         return !string.IsNullOrWhiteSpace(extension) && AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private void ToggleSidebar_Clicked(object? sender, EventArgs e)
+    {
+        if (Sidebar != null && MainGrid != null && MainGrid.ColumnDefinitions.Count > 0)
+        {
+            bool isVisible = Sidebar.IsVisible;
+            Sidebar.IsVisible = !isVisible;
+            
+            // Adjust column width: 220 when open, 0 when closed
+            if (isVisible)
+            {
+                // Sidebar is open, close it
+                MainGrid.ColumnDefinitions[0].Width = 0;
+            }
+            else
+            {
+                // Sidebar is closed, open it
+                MainGrid.ColumnDefinitions[0].Width = 220;
+            }
+        }
+    }
+
+    private void ImportPhoto_Tapped(object? sender, TappedEventArgs e)
+    {
+        // Call the existing UploadMedia method
+        UploadMedia(sender ?? this, EventArgs.Empty);
     }
 }

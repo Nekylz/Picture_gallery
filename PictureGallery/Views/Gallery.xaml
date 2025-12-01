@@ -3,8 +3,101 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="PictureGallery.Views.Gallery"
              Title="Gallery">
-    <Grid>
-        <VerticalStackLayout Padding="20" Spacing="12">
+    <Grid x:Name="MainGrid" ColumnDefinitions="220,*">
+        <!-- SIDEBAR -->
+        <Border x:Name="Sidebar"
+                Grid.Column="0"
+                BackgroundColor="#E6E6E6"
+                StrokeThickness="0"
+                WidthRequest="220"
+                IsVisible="True"
+                HorizontalOptions="Start"
+                VerticalOptions="Fill">
+            <VerticalStackLayout Padding="24,32" Spacing="18">
+                <Label Text="Menu"
+                       FontSize="20"
+                       FontAttributes="Bold"
+                       TextColor="#222"
+                       Margin="0,0,0,6" />
+
+                <Frame x:Name="ImportPhotoFrame"
+                       BackgroundColor="#6750A4"
+                       CornerRadius="14"
+                       Padding="14"
+                       HasShadow="False"
+                       BorderColor="Transparent">
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="ImportPhoto_Tapped" />
+                    </Frame.GestureRecognizers>
+                    <Label Text="Import Photo"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Frame>
+
+                <Frame BackgroundColor="#6750A4"
+                       CornerRadius="14"
+                       Padding="14"
+                       HasShadow="False"
+                       BorderColor="Transparent">
+                    <Label Text="Photo Gallery"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Frame>
+
+                <Frame BackgroundColor="#6750A4"
+                       CornerRadius="14"
+                       Padding="14"
+                       HasShadow="False"
+                       BorderColor="Transparent">
+                    <Label Text="Labels"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Frame>
+
+                <Frame BackgroundColor="#6750A4"
+                       CornerRadius="14"
+                       Padding="14"
+                       HasShadow="False"
+                       BorderColor="Transparent">
+                    <Label Text="Create Photobook"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White"
+                           HorizontalOptions="Center"
+                           VerticalOptions="Center" />
+                </Frame>
+            </VerticalStackLayout>
+        </Border>
+
+        <!-- MAIN CONTENT -->
+        <Grid Grid.Column="1">
+            <!-- TOGGLE BUTTON -->
+            <Button x:Name="SidebarToggleButton"
+                    Text="☰"
+                    FontSize="24"
+                    WidthRequest="50"
+                    HeightRequest="50"
+                    CornerRadius="25"
+                    BackgroundColor="#6750A4"
+                    TextColor="White"
+                    HorizontalOptions="Start"
+                    VerticalOptions="Start"
+                    Margin="10"
+                    Clicked="ToggleSidebar_Clicked" />
+
+            <VerticalStackLayout x:Name="MainContent"
+                                 Padding="20" 
+                                 Spacing="12" 
+                                 Margin="0,60,0,0">
 
             <!-- HEADER -->
             <Grid ColumnDefinitions="Auto,*">
@@ -34,16 +127,6 @@
                 </HorizontalStackLayout>
             </Grid>
 
-            <!-- UPLOAD BUTTON -->
-            <Button
-                Text="Upload photo"
-                Clicked="UploadMedia"
-                HorizontalOptions="Center"
-                BackgroundColor="#6750A4"
-                TextColor="White"
-                CornerRadius="20"
-                Padding="20,10" />
-
             <!-- PHOTO COUNT -->
             <Label x:Name="PhotoCountLabel"
                    Text="{Binding Photos.Count, StringFormat='Fotos: {0}'}"
@@ -54,41 +137,66 @@
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
                             ItemsSource="{Binding Photos}"
-                            Margin="0,10,0,0">
+                            Margin="0,20,0,0"
+                            ItemSizingStrategy="MeasureFirstItem">
                 <CollectionView.ItemsLayout>
-                    <GridItemsLayout Orientation="Vertical" Span="4" />
+                    <GridItemsLayout Orientation="Vertical"
+                                     Span="4"
+                                     HorizontalItemSpacing="16"
+                                     VerticalItemSpacing="16" />
                 </CollectionView.ItemsLayout>
                 <CollectionView.ItemTemplate>
                     <DataTemplate>
-                        <Frame Padding="5" Margin="5" HasShadow="False" BorderColor="#E0E0E0" CornerRadius="12">
-                            <StackLayout>
-                                <Image Source="{Binding ImageSource}" Aspect="AspectFill" HeightRequest="90" WidthRequest="90">
-                                    <Image.GestureRecognizers>
-                                        <TapGestureRecognizer Tapped="OnPhotoTapped" NumberOfTapsRequired="1" CommandParameter="{Binding .}" />
-                                    </Image.GestureRecognizers>
-                                </Image>
-
-                                <!-- Labels onder de foto -->
-                                <StackLayout BindableLayout.ItemsSource="{Binding Labels}" Orientation="Horizontal" Spacing="5">
-                                    <BindableLayout.ItemTemplate>
-                                        <DataTemplate>
-                                            <Label Text="{Binding}" BackgroundColor="LightGray" Padding="2"/>
-                                        </DataTemplate>
-                                    </BindableLayout.ItemTemplate>
-                                </StackLayout>
-                            </StackLayout>
+                        <Frame HeightRequest="180"
+                               WidthRequest="180"
+                               Padding="10"
+                               Margin="0"
+                               HasShadow="False"
+                               CornerRadius="16"
+                               BackgroundColor="White"
+                               BorderColor="#E0E0E0">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup>
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Image Source="{Binding ImageSource}"
+                                   Aspect="AspectFit"
+                                   HorizontalOptions="Fill"
+                                   VerticalOptions="Fill"
+                                   BackgroundColor="White">
+                                <Image.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPhotoTapped"
+                                                          NumberOfTapsRequired="1"
+                                                          CommandParameter="{Binding .}" />
+                                </Image.GestureRecognizers>
+                            </Image>
                         </Frame>
                     </DataTemplate>
                 </CollectionView.ItemTemplate>
             </CollectionView>
-        </VerticalStackLayout>
+            </VerticalStackLayout>
 
-        <!-- FULLSCREEN OVERLAY -->
-        <Grid x:Name="FullscreenOverlay"
-              BackgroundColor="#CC000000"
-              IsVisible="False"
-              VerticalOptions="Fill"
-              HorizontalOptions="Fill">
+            <!-- FULLSCREEN OVERLAY -->
+            <Grid x:Name="FullscreenOverlay"
+                  BackgroundColor="#CC000000"
+                  IsVisible="False"
+                  VerticalOptions="Fill"
+                  HorizontalOptions="Fill">
 
             <ScrollView VerticalOptions="Fill" HorizontalOptions="Fill">
                 <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="20">
@@ -104,7 +212,12 @@
 
                     <!-- ADD LABEL -->
                     <StackLayout Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
-                        <Entry x:Name="LabelEntry" Placeholder="Add label" WidthRequest="150" />
+                        <Entry x:Name="LabelEntry"
+                               Placeholder="Add label"
+                               WidthRequest="160"
+                               BackgroundColor="White"
+                               TextColor="Black"
+                               PlaceholderColor="#777777" />
                         <Button Text="Add" Clicked="AddLabelButton_Clicked" />
                     </StackLayout>
 
@@ -121,6 +234,7 @@
                     HorizontalOptions="End"
                     Margin="20"
                     Clicked="CloseFullscreen" />
+            </Grid>
         </Grid>
     </Grid>
 </ContentPage>
