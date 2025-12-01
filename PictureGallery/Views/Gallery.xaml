@@ -136,7 +136,6 @@
 
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
-                            ItemsSource="{Binding Photos}"
                             Margin="0,20,0,0"
                             ItemSizingStrategy="MeasureFirstItem">
                 <CollectionView.ItemsLayout>
