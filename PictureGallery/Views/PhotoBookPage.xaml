@@ -1,36 +1,41 @@
-<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="PictureGallery.Views.PhotoBookPage"
              Title="Fotoboek">
+    <Grid x:Name="MainGrid" ColumnDefinitions="220,*" BackgroundColor="#F3E1DD">
+        <VerticalStackLayout Padding="20" Spacing="10">
 
-    <VerticalStackLayout Padding="20" Spacing="10">
+            <!-- Voeg foto toe -->
+            <Button Text="Voeg foto toe" Clicked="AddPhoto_Clicked" />
 
-        <!-- Template Picker -->
-        <Picker x:Name="TemplatePicker" Title="Selecteer template" />
-
-        <!-- Add Photo knop -->
-        <Button Text="Voeg foto toe" Clicked="AddPhoto_Clicked" />
-
-        <!-- Pagina overzicht -->
-        <CollectionView x:Name="PagesCollectionView"
+            <!-- Pagina overzicht -->
+            <CollectionView x:Name="PagesCollectionView"
                         ItemsSource="{Binding PhotoBook.Pages}">
-            <CollectionView.ItemTemplate>
-                <DataTemplate>
-                    <Frame Padding="5" Margin="5" BorderColor="#E0E0E0" CornerRadius="10">
-                        <StackLayout>
-                            <Image Source="{Binding Photo.ImageSource}" HeightRequest="150" Aspect="AspectFit"/>
-                            <Entry Text="{Binding Title}" Placeholder="Voeg titel/tekst toe"/>
-                            <HorizontalStackLayout Spacing="5">
-                                <Button Text="Verwijder" Clicked="RemovePage_Clicked"/>
-                                <Button Text="Omhoog" Clicked="MoveUp_Clicked"/>
-                                <Button Text="Omlaag" Clicked="MoveDown_Clicked"/>
-                            </HorizontalStackLayout>
-                        </StackLayout>
-                    </Frame>
-                </DataTemplate>
-            </CollectionView.ItemTemplate>
-        </CollectionView>
+                <CollectionView.ItemTemplate>
+                    <DataTemplate>
+                        <Frame Padding="5" Margin="5" BorderColor="#E0E0E0" CornerRadius="10">
+                            <StackLayout Spacing="10">
 
-    </VerticalStackLayout>
+                                <!-- 2x2 Grid voor max 4 foto's per pagina -->
+                                <Grid RowDefinitions="*,*"
+                                  ColumnDefinitions="*,*"
+                                  RowSpacing="5"
+                                  ColumnSpacing="5">
+                                    <Image Grid.Row="0" Grid.Column="0" Source="{Binding Photos[0].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
+                                    <Image Grid.Row="0" Grid.Column="1" Source="{Binding Photos[1].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
+                                    <Image Grid.Row="1" Grid.Column="0" Source="{Binding Photos[2].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
+                                    <Image Grid.Row="1" Grid.Column="1" Source="{Binding Photos[3].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
+                                </Grid>
+
+                                <!-- Titel/tekst per pagina -->
+                                <Entry Text="{Binding Title}" Placeholder="Voeg titel/tekst toe"/>
+
+                            </StackLayout>
+                        </Frame>
+                    </DataTemplate>
+                </CollectionView.ItemTemplate>
+            </CollectionView>
+
+        </VerticalStackLayout>
+    </Grid>
 </ContentPage>

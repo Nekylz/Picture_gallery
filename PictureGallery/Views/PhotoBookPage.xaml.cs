@@ -1,49 +1,53 @@
-﻿using Microsoft.Maui.Storage;
-using PictureGallery.Models;
-using System.Collections.ObjectModel;
-
-namespace PictureGallery.Views;
-
+﻿namespace PictureGallery.Views;
 public partial class PhotoBookPage : ContentPage
 {
     public PhotoBook PhotoBook { get; set; } = new();
+    private static readonly int MaxPhotosPerPage = 4;
+    private static readonly int MaxPages = 2;
 
     public PhotoBookPage()
     {
         InitializeComponent();
         BindingContext = this;
 
-        // Voeg standaard templates toe
-        TemplatePicker.ItemsSource = new string[] { "Default", "Modern", "Classic" };
-        TemplatePicker.SelectedIndex = 0;
+        // Initialize pages
+        for (int i = 0; i < MaxPages; i++)
+            PhotoBook.Pages.Add(new PhotoBookPageModel());
     }
 
-    // FR3: Foto toevoegen
     private async void AddPhoto_Clicked(object sender, EventArgs e)
     {
         try
         {
-            var result = await FilePicker.Default.PickMultipleAsync(new PickOptions
+            var results = await FilePicker.Default.PickMultipleAsync(new PickOptions
             {
                 FileTypes = FilePickerFileType.Images,
-                PickerTitle = "Selecteer foto's voor het fotoboek"
+                PickerTitle = "Selecteer afbeeldingen"
             });
 
-            if (result != null)
+            if (results == null || !results.Any())
+                return;
+
+            foreach (var result in results)
             {
-                foreach (var file in result)
+                if (!IsSupportedImage(result.FileName))
+                    continue;
+
+                var photo = await CreatePhotoItemAsync(result);
+
+                // Find first page with < 4 photos
+                var page = PhotoBook.Pages.FirstOrDefault(p => p.Photos.Count < MaxPhotosPerPage);
+                if (page == null)
                 {
-                    var photo = await CreatePhotoItemAsync(file);
-                    if (photo != null)
-                    {
-                        PhotoBook.Pages.Add(new PhotoBookPageItem
-                        {
-                            Photo = photo,
-                            Title = ""
-                        });
-                    }
+                    await DisplayAlert("Vol!", "Alle pagina's zijn vol (max 4 foto's per pagina, 2 pagina's).", "OK");
+                    break;
                 }
+
+                page.Photos.Add(photo);
             }
+
+            PagesCollectionView.ItemsSource = null;
+            PagesCollectionView.ItemsSource = PhotoBook.Pages;
         }
         catch (Exception ex)
         {
@@ -51,59 +55,29 @@ public partial class PhotoBookPage : ContentPage
         }
     }
 
-    // Helper: maak PhotoItem aan
-    private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult file)
+    private bool IsSupportedImage(string fileName)
     {
-        if (file == null) return null;
+        var allowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
+        var extension = Path.GetExtension(fileName);
+        return !string.IsNullOrWhiteSpace(extension) && allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+    }
 
-        string filePath = file.FullPath ?? Path.Combine(FileSystem.CacheDirectory, file.FileName);
-        if (!File.Exists(filePath))
+    private async Task<PhotoItem> CreatePhotoItemAsync(FileResult result)
+    {
+        var filePath = result.FullPath;
+        if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            await using var stream = await file.OpenReadAsync();
-            await using var fs = File.Create(filePath);
-            await stream.CopyToAsync(fs);
+            await using var pickedStream = await result.OpenReadAsync();
+            filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
+            await using var tempFile = File.Create(filePath);
+            await pickedStream.CopyToAsync(tempFile);
         }
 
         return new PhotoItem
         {
-            FileName = file.FileName,
+            FileName = result.FileName,
             FilePath = filePath,
             ImageSource = ImageSource.FromFile(filePath)
         };
-    }
-
-    // FR3: Pagina verwijderen
-    private void RemovePage_Clicked(object sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.BindingContext is PhotoBookPageItem page)
-        {
-            PhotoBook.Pages.Remove(page);
-        }
-    }
-
-    // FR3: Pagina omhoog
-    private void MoveUp_Clicked(object sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.BindingContext is PhotoBookPageItem page)
-        {
-            int index = PhotoBook.Pages.IndexOf(page);
-            if (index > 0)
-            {
-                PhotoBook.Pages.Move(index, index - 1);
-            }
-        }
-    }
-
-    // FR3: Pagina omlaag
-    private void MoveDown_Clicked(object sender, EventArgs e)
-    {
-        if (sender is Button btn && btn.BindingContext is PhotoBookPageItem page)
-        {
-            int index = PhotoBook.Pages.IndexOf(page);
-            if (index < PhotoBook.Pages.Count - 1)
-            {
-                PhotoBook.Pages.Move(index, index + 1);
-            }
-        }
     }
 }

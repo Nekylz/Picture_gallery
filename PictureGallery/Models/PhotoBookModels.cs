@@ -1,17 +1,12 @@
 ﻿using System.Collections.ObjectModel;
 
-namespace PictureGallery.Models
+public class PhotoBookPageModel
 {
-    public class PhotoBookPageItem
-    {
-        public PhotoItem Photo { get; set; }
-        public string? Title { get; set; } // Tekst/titel per pagina
-    }
+    public ObservableCollection<PhotoItem> Photos { get; } = new();
+    public string? Title { get; set; }
+}
 
-    public class PhotoBook
-    {
-        public string Name { get; set; } = "NewPhotoBook";
-        public ObservableCollection<PhotoBookPageItem> Pages { get; set; } = new();
-        public string Template { get; set; } = "Default"; // Template selectie
-    }
+public class PhotoBook
+{
+    public ObservableCollection<PhotoBookPageModel> Pages { get; } = new();
 }

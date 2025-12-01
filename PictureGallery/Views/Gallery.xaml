@@ -3,11 +3,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="PictureGallery.Views.Gallery"
              Title="Gallery">
-    <Grid x:Name="MainGrid" ColumnDefinitions="220,*">
+    <Grid x:Name="MainGrid" ColumnDefinitions="220,*" BackgroundColor="#F3E1DD">
         <!-- SIDEBAR -->
         <Border x:Name="Sidebar"
                 Grid.Column="0"
-                BackgroundColor="#E6E6E6"
+                BackgroundColor="#CC7178"
                 StrokeThickness="0"
                 WidthRequest="220"
                 IsVisible="True"
@@ -17,61 +17,69 @@
                 <Label Text="Menu"
                        FontSize="20"
                        FontAttributes="Bold"
-                       TextColor="#222"
+                       TextColor="Black"
                        Margin="0,0,0,6" />
 
                 <Frame x:Name="ImportPhotoFrame"
-                       BackgroundColor="#6750A4"
+                       BackgroundColor="#F3E1DD"
                        CornerRadius="14"
                        Padding="14"
                        HasShadow="False"
-                       BorderColor="Transparent">
+                       BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
                         <TapGestureRecognizer Tapped="ImportPhoto_Tapped" />
                     </Frame.GestureRecognizers>
                     <Label Text="Import Photo"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="White"
+                           TextColor="Black"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
                 </Frame>
 
-                <Frame BackgroundColor="#6750A4"
+                <Frame x:Name="PhotoBookFrame"
+                       BackgroundColor="#F3E1DD"
                        CornerRadius="14"
                        Padding="14"
                        HasShadow="False"
-                       BorderColor="Transparent">
-                    <Label Text="Photo Gallery"
+                       BorderColor="#C7D9B7">
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="ImportPhoto_Tapped" />
+                    </Frame.GestureRecognizers>
+                    <Label Text="Photo Book"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="White"
+                           TextColor="Black"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
                 </Frame>
 
-                <Frame BackgroundColor="#6750A4"
+                <Frame x:Name="LabelFrame"
+                    BackgroundColor="#F3E1DD"
                        CornerRadius="14"
                        Padding="14"
                        HasShadow="False"
-                       BorderColor="Transparent">
+                       BorderColor="#C7D9B7">
+                    <Frame.GestureRecognizers>
+                        <TapGestureRecognizer Tapped="AddLabelButton_Clicked" />
+                    </Frame.GestureRecognizers>
                     <Label Text="Labels"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="White"
+                           TextColor="Black"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
                 </Frame>
 
-                <Frame BackgroundColor="#6750A4"
+                <Frame BackgroundColor="#F3E1DD"
                        CornerRadius="14"
                        Padding="14"
                        HasShadow="False"
-                       BorderColor="Transparent">
+                       BorderColor="#C7D9B7">
                     <Label Text="Create Photobook"
                            FontSize="16"
                            FontAttributes="Bold"
-                           TextColor="White"
+                           TextColor="Black"
                            HorizontalOptions="Center"
                            VerticalOptions="Center" />
                 </Frame>
@@ -87,8 +95,9 @@
                     WidthRequest="50"
                     HeightRequest="50"
                     CornerRadius="25"
-                    BackgroundColor="#6750A4"
-                    TextColor="White"
+                    BackgroundColor="#F3E1DD"
+                    BorderColor="#C7D9B7"
+                    TextColor="Black"
                     HorizontalOptions="Start"
                     VerticalOptions="Start"
                     Margin="10"
@@ -99,57 +108,58 @@
                                  Spacing="12" 
                                  Margin="0,60,0,0">
 
-            <!-- HEADER -->
-            <Grid ColumnDefinitions="Auto,*">
-                <Label 
+                <!-- HEADER -->
+                <Grid ColumnDefinitions="Auto,*">
+                    <Label 
                     Text="Photo Gallery"
                     FontSize="32"
+                    TextColor="Black"
                     FontAttributes="Bold"
                     HorizontalOptions="Start"
                     VerticalOptions="Center" />
 
-                <HorizontalStackLayout Grid.Column="1"
+                    <HorizontalStackLayout Grid.Column="1"
                                        Spacing="10"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
-                    <Button Text="Filter: Label"
+                        <Button Text="Filter: Label"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12" />
-                    <Button Text="Newest ↑"
+                        <Button Text="Newest ↑"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12" />
-                    <Frame HeightRequest="40"
+                        <Frame HeightRequest="40"
                            WidthRequest="40"
                            BackgroundColor="#EDEDED"
                            CornerRadius="20" />
-                </HorizontalStackLayout>
-            </Grid>
+                    </HorizontalStackLayout>
+                </Grid>
 
-            <!-- PHOTO COUNT -->
-            <Label x:Name="PhotoCountLabel"
+                <!-- PHOTO COUNT -->
+                <Label x:Name="PhotoCountLabel"
                    Text="{Binding Photos.Count, StringFormat='Fotos: {0}'}"
                    HorizontalOptions="Start"
                    Margin="0,5,0,0"
                    IsVisible="False" />
-     
 
 
-            <!-- COLLECTIONVIEW -->
-            <CollectionView x:Name="PhotosCollection"
+
+                <!-- COLLECTIONVIEW -->
+                <CollectionView x:Name="PhotosCollection"
                             ItemsSource="{Binding Photos}"
                             Margin="0,20,0,0"
                             ItemSizingStrategy="MeasureFirstItem">
-                <CollectionView.ItemsLayout>
-                    <GridItemsLayout Orientation="Vertical"
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical"
                                      Span="4"
                                      HorizontalItemSpacing="16"
                                      VerticalItemSpacing="16" />
-                </CollectionView.ItemsLayout>
-                <CollectionView.ItemTemplate>
-                    <DataTemplate>
-                        <Frame HeightRequest="180"
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Frame HeightRequest="180"
                                WidthRequest="180"
                                Padding="10"
                                Margin="0"
@@ -157,40 +167,40 @@
                                CornerRadius="16"
                                BackgroundColor="White"
                                BorderColor="#E0E0E0">
-                            <VisualStateManager.VisualStateGroups>
-                                <VisualStateGroup>
-                                    <VisualState x:Name="Normal">
-                                        <VisualState.Setters>
-                                            <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="PointerOver">
-                                        <VisualState.Setters>
-                                            <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                    <VisualState x:Name="Pressed">
-                                        <VisualState.Setters>
-                                            <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
-                                        </VisualState.Setters>
-                                    </VisualState>
-                                </VisualStateGroup>
-                            </VisualStateManager.VisualStateGroups>
-                            <Image Source="{Binding ImageSource}"
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup>
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Image Source="{Binding ImageSource}"
                                    Aspect="AspectFit"
                                    HorizontalOptions="Fill"
                                    VerticalOptions="Fill"
                                    BackgroundColor="White">
-                                <Image.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnPhotoTapped"
+                                    <Image.GestureRecognizers>
+                                        <TapGestureRecognizer Tapped="OnPhotoTapped"
                                                           NumberOfTapsRequired="1"
                                                           CommandParameter="{Binding .}" />
-                                </Image.GestureRecognizers>
-                            </Image>
-                        </Frame>
-                    </DataTemplate>
-                </CollectionView.ItemTemplate>
-            </CollectionView>
+                                    </Image.GestureRecognizers>
+                                </Image>
+                            </Frame>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
             </VerticalStackLayout>
 
             <!-- FULLSCREEN OVERLAY -->
@@ -200,36 +210,36 @@
                   VerticalOptions="Fill"
                   HorizontalOptions="Fill">
 
-            <ScrollView VerticalOptions="Fill" HorizontalOptions="Fill">
-                <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="20">
+                <ScrollView VerticalOptions="Fill" HorizontalOptions="Fill">
+                    <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="20">
 
-                    <Image x:Name="FullscreenImage" Aspect="AspectFit" VerticalOptions="Center" HorizontalOptions="Center" MaximumHeightRequest="500" />
+                        <Image x:Name="FullscreenImage" Aspect="AspectFit" VerticalOptions="Center" HorizontalOptions="Center" MaximumHeightRequest="500" />
 
-                    <!-- INFO -->
-                    <StackLayout VerticalOptions="End" HorizontalOptions="Center" Spacing="5" BackgroundColor="Black" Opacity="0.5">
-                        <Label x:Name="OverlayFileName" TextColor="White" FontSize="16" HorizontalTextAlignment="Center" />
-                        <Label x:Name="OverlayDimensions" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
-                        <Label x:Name="OverlayFileSize" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
-                    </StackLayout>
+                        <!-- INFO -->
+                        <StackLayout VerticalOptions="End" HorizontalOptions="Center" Spacing="5" BackgroundColor="Black" Opacity="0.5">
+                            <Label x:Name="OverlayFileName" TextColor="White" FontSize="16" HorizontalTextAlignment="Center" />
+                            <Label x:Name="OverlayDimensions" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
+                            <Label x:Name="OverlayFileSize" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
+                        </StackLayout>
 
-                    <!-- ADD LABEL -->
-                    <StackLayout Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
-                        <Entry x:Name="LabelEntry"
+                        <!-- ADD LABEL -->
+                        <StackLayout Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
+                            <Entry x:Name="LabelEntry"
                                Placeholder="Add label"
                                WidthRequest="160"
                                BackgroundColor="White"
                                TextColor="Black"
                                PlaceholderColor="#777777" />
-                        <Button Text="Add" Clicked="AddLabelButton_Clicked" />
-                    </StackLayout>
+                            <Button Text="Add" Clicked="AddLabelButton_Clicked" />
+                        </StackLayout>
 
-                    <!-- DISPLAY LABELS -->
-                    <StackLayout x:Name="LabelContainer" Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
-                    </StackLayout>
-                </VerticalStackLayout>
-            </ScrollView>
+                        <!-- DISPLAY LABELS -->
+                        <StackLayout x:Name="LabelContainer" Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
+                        </StackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
 
-            <Button Text="Close"
+                <Button Text="Close"
                     BackgroundColor="White"
                     TextColor="Black"
                     VerticalOptions="Start"
