@@ -239,4 +239,14 @@ public partial class Gallery : ContentPage
         // Call the existing UploadMedia method
         UploadMedia(sender ?? this, EventArgs.Empty);
     }
+    private async void OpenPhotoBook_Tapped(object sender, TappedEventArgs e)
+    {
+        if (Navigation != null)
+        {
+            await Navigation.PushAsync(new PhotoBookPage());
+        }
+    }
+
+
+
 }

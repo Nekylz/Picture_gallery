@@ -44,15 +44,16 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="ImportPhoto_Tapped" />
+                        <TapGestureRecognizer Tapped="OpenPhotoBook_Tapped" />
                     </Frame.GestureRecognizers>
                     <Label Text="Photo Book"
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           TextColor="Black"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center" />
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       TextColor="Black"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
                 </Frame>
+
 
                 <Frame x:Name="LabelFrame"
                     BackgroundColor="#F3E1DD"
