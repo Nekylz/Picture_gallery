@@ -147,19 +147,27 @@ public class DatabaseService
     // ========== LABEL OPERATIONS ==========
 
     /// <summary>
-    /// Add a label to a photo
+    /// Add a label to a photo (case-insensitive)
+    /// Returns the label ID if successful, or 0 if label already exists
     /// </summary>
     public async Task<int> AddLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
         
-        // Check if label already exists for this photo
-        var existingLabel = await db.Table<PhotoLabel>()
-            .Where(l => l.PhotoId == photoId && l.LabelText == labelText)
-            .FirstOrDefaultAsync();
+        // Get all labels for this photo and check case-insensitively
+        var existingLabels = await db.Table<PhotoLabel>()
+            .Where(l => l.PhotoId == photoId)
+            .ToListAsync();
+
+        // Check if label already exists (case-insensitive)
+        var existingLabel = existingLabels
+            .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
 
         if (existingLabel != null)
-            return 0; // Label already exists
+        {
+            System.Diagnostics.Debug.WriteLine($"Label '{labelText}' already exists for photo {photoId} (existing: '{existingLabel.LabelText}')");
+            return 0; // Label already exists (case-insensitive)
+        }
 
         var label = new PhotoLabel
         {
@@ -168,7 +176,11 @@ public class DatabaseService
             CreatedDate = DateTime.Now
         };
 
-        return await db.InsertAsync(label);
+        var result = await db.InsertAsync(label);
+        System.Diagnostics.Debug.WriteLine($"Label '{labelText}' added successfully with ID: {label.Id}, InsertAsync returned: {result}");
+        
+        // Return the label ID (label.Id is set by InsertAsync for AutoIncrement)
+        return label.Id > 0 ? label.Id : (result > 0 ? result : 1);
     }
 
     /// <summary>
@@ -197,13 +209,27 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Remove a label from a photo
+    /// Remove a label from a photo (case-insensitive)
     /// </summary>
     public async Task<int> RemoveLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
-        return await db.Table<PhotoLabel>()
-            .DeleteAsync(l => l.PhotoId == photoId && l.LabelText == labelText);
+        
+        // Get all labels for this photo
+        var labels = await db.Table<PhotoLabel>()
+            .Where(l => l.PhotoId == photoId)
+            .ToListAsync();
+        
+        // Find label case-insensitively
+        var labelToDelete = labels
+            .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
+        
+        if (labelToDelete != null)
+        {
+            return await db.DeleteAsync(labelToDelete);
+        }
+        
+        return 0;
     }
 
     /// <summary>
@@ -216,28 +242,37 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Get all unique labels across all photos
+    /// Get all unique labels across all photos (case-insensitive distinct)
     /// </summary>
     public async Task<List<string>> GetAllUniqueLabelsAsync()
     {
         var db = await GetDatabaseAsync();
         var labels = await db.Table<PhotoLabel>().ToListAsync();
-        return labels.Select(l => l.LabelText).Distinct().OrderBy(l => l).ToList();
+        
+        // Group by case-insensitive label text and take the first occurrence
+        var uniqueLabels = labels
+            .GroupBy(l => l.LabelText, StringComparer.OrdinalIgnoreCase)
+            .Select(g => g.First().LabelText) // Keep original casing of first occurrence
+            .OrderBy(l => l, StringComparer.OrdinalIgnoreCase)
+            .ToList();
+        
+        return uniqueLabels;
     }
 
     /// <summary>
-    /// Get all photos with a specific label
+    /// Get all photos with a specific label (case-insensitive)
     /// </summary>
     public async Task<List<PhotoItem>> GetPhotosByLabelAsync(string labelText)
     {
         var db = await GetDatabaseAsync();
         
-        // Get photo IDs that have this label
-        var labels = await db.Table<PhotoLabel>()
-            .Where(l => l.LabelText == labelText)
-            .ToListAsync();
+        // Get all labels and filter case-insensitively
+        var allLabels = await db.Table<PhotoLabel>().ToListAsync();
+        var matchingLabels = allLabels
+            .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
         
-        var photoIds = labels.Select(l => l.PhotoId).ToList();
+        var photoIds = matchingLabels.Select(l => l.PhotoId).ToList();
 
         if (!photoIds.Any())
             return new List<PhotoItem>();

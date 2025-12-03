@@ -16,6 +16,7 @@ public partial class Gallery : ContentPage
 {
     private static readonly string[] AllowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
     public ObservableCollection<PhotoItem> Photos { get; } = new();
+    private ObservableCollection<string> AvailableLabels { get; } = new();
 
     private PhotoItem? currentPhoto;
     private readonly DatabaseService _databaseService;
@@ -69,7 +70,7 @@ public partial class Gallery : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading photos: {ex.Message}\n{ex.StackTrace}");
-            await DisplayAlert("Error", $"Failed to load photos: {ex.Message}", "OK");
+            await Application.Current.MainPage.DisplayAlert("Error", $"Failed to load photos: {ex.Message}", "OK");
         }
     }
 
@@ -104,7 +105,7 @@ public partial class Gallery : ContentPage
                         catch (Exception dbEx)
                         {
                             System.Diagnostics.Debug.WriteLine($"Database error: {dbEx.Message}");
-                            await DisplayAlert("Database Error", $"Failed to save photo: {dbEx.Message}", "OK");
+                            await Application.Current.MainPage.DisplayAlert("Database Error", $"Failed to save photo: {dbEx.Message}", "OK");
                             continue;
                         }
                         
@@ -168,7 +169,7 @@ public partial class Gallery : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", ex.Message, "OK");
+            await Application.Current.MainPage.DisplayAlert("Error", ex.Message, "OK");
         }
     }
 
@@ -317,26 +318,267 @@ public partial class Gallery : ContentPage
     private async void AddLabelButton_Clicked(object sender, EventArgs e)
     {
         if (currentPhoto == null)
+        {
+            await Application.Current.MainPage.DisplayAlert("Geen foto geselecteerd", "Selecteer eerst een foto om een label toe te voegen.", "OK");
             return;
+        }
 
         var newLabel = LabelEntry.Text?.Trim();
-        if (!string.IsNullOrEmpty(newLabel))
+        if (string.IsNullOrEmpty(newLabel))
         {
-            try
+            await Application.Current.MainPage.DisplayAlert("Leeg label", "Voer een label naam in.", "OK");
+            return;
+        }
+
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"Attempting to add label: '{newLabel}' to photo ID: {currentPhoto.Id}");
+            
+            // Add label to database (returns 0 if label already exists, > 0 if added)
+            var result = await _databaseService.AddLabelAsync(currentPhoto.Id, newLabel);
+            
+            System.Diagnostics.Debug.WriteLine($"AddLabelAsync returned: {result}");
+            
+            if (result == 0)
             {
-                // Add label to database
-                await _databaseService.AddLabelAsync(currentPhoto.Id, newLabel);
-                
-                // Reload labels from database to ensure consistency
-                await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
-                
+                // Label already exists (case-insensitive)
+                System.Diagnostics.Debug.WriteLine($"Label '{newLabel}' already exists for photo {currentPhoto.Id}");
+                await Application.Current.MainPage.DisplayAlert("Label bestaat al", $"Het label '{newLabel}' bestaat al voor deze foto.", "OK");
                 LabelEntry.Text = string.Empty;
-                DisplayLabels(currentPhoto);
+                return;
             }
-            catch (Exception ex)
+            
+            System.Diagnostics.Debug.WriteLine($"Label '{newLabel}' successfully added with ID: {result}");
+            
+            // Reload labels from database to ensure consistency
+            await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
+            
+            LabelEntry.Text = string.Empty;
+            DisplayLabels(currentPhoto);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error adding label: {ex.Message}\n{ex.StackTrace}");
+            await Application.Current.MainPage.DisplayAlert("Error", $"Failed to add label: {ex.Message}", "OK");
+        }
+    }
+
+    private async void LabelDropdownButton_Clicked(object? sender, EventArgs e)
+    {
+        if (currentPhoto == null)
+        {
+            await Application.Current.MainPage.DisplayAlert("Geen foto geselecteerd", "Selecteer eerst een foto om een label toe te voegen.", "OK");
+            return;
+        }
+
+        // Toggle dropdown visibility
+        if (LabelDropdown.IsVisible)
+        {
+            LabelDropdown.IsVisible = false;
+        }
+        else
+        {
+            // Load all available labels
+            await LoadAvailableLabelsAsync();
+            
+            if (AvailableLabels.Count == 0)
             {
-                await DisplayAlert("Error", $"Failed to add label: {ex.Message}", "OK");
+                await Application.Current.MainPage.DisplayAlert("Geen labels", "Er zijn nog geen labels beschikbaar. Voeg eerst een label toe via het tekstvak.", "OK");
+                return;
             }
+            
+            // Clear existing items and row definitions
+            LabelDropdownList.Children.Clear();
+            LabelDropdownList.RowDefinitions.Clear();
+            
+            // Create row definitions for each label
+            for (int i = 0; i < AvailableLabels.Count; i++)
+            {
+                LabelDropdownList.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+            }
+            
+            // Create a clickable Frame for each label
+            // Place each frame in its own row to ensure full width
+            for (int i = 0; i < AvailableLabels.Count; i++)
+            {
+                var label = AvailableLabels[i];
+                
+                var frame = new Frame
+                {
+                    BackgroundColor = Colors.White,
+                    BorderColor = Colors.Transparent,
+                    HasShadow = false,
+                    Padding = new Thickness(12, 8),
+                    MinimumHeightRequest = 40,
+                    HeightRequest = 40,
+                    HorizontalOptions = LayoutOptions.FillAndExpand,
+                    CornerRadius = 0
+                };
+                
+                var labelText = new Label
+                {
+                    Text = label,
+                    FontSize = 14,
+                    TextColor = Colors.Black,
+                    VerticalOptions = LayoutOptions.Center,
+                    HorizontalOptions = LayoutOptions.Start,
+                    InputTransparent = true
+                };
+                
+                frame.Content = labelText;
+                
+                // Store the label for the click handler
+                string capturedLabel = label;
+                
+                // Add tap gesture to the frame
+                var tapGesture = new TapGestureRecognizer();
+                tapGesture.Tapped += async (s, e) =>
+                {
+                    System.Diagnostics.Debug.WriteLine($"Frame tapped: {capturedLabel}, sender: {s?.GetType().Name}");
+                    await AddLabelFromDropdown(capturedLabel);
+                };
+                frame.GestureRecognizers.Add(tapGesture);
+                
+                // Add frame to Grid in its own row
+                Grid.SetRow(frame, i);
+                LabelDropdownList.Children.Add(frame);
+            }
+            
+            System.Diagnostics.Debug.WriteLine($"Created {AvailableLabels.Count} label items in dropdown");
+            
+            // Position dropdown directly under the Labels button
+            // The StackLayout is centered, and the button is the first element (80px wide)
+            // The dropdown is 200px wide, so to align it with the button's left edge,
+            // we need to shift it left. Since the Grid is centered and the dropdown has HorizontalOptions="Start",
+            // it aligns to the Grid's left edge. We need to shift it left by approximately
+            // half the StackLayout width minus half the dropdown width to align with the button.
+            // StackLayout width ≈ 80 + 5 + 160 + 5 + 80 = 330px
+            // To align dropdown (200px) with button (80px) that's at position (330-80)/2 = 125px from Grid left,
+            // we shift left by: 125 - (200-80)/2 = 125 - 60 = 65px
+            // Actually simpler: shift left by the button's position relative to Grid center
+            // For now, let's use a negative margin to shift it left
+            // The button starts at approximately 125px from Grid left (half of 330 - half of 80)
+            // So we shift the dropdown left by 125px to align with button's left edge
+            LabelDropdown.Margin = new Thickness(-125, 5, 0, 0);
+            LabelDropdown.IsVisible = true;
+        }
+    }
+
+    private async Task LoadAvailableLabelsAsync()
+    {
+        try
+        {
+            var labels = await _databaseService.GetAllUniqueLabelsAsync();
+            AvailableLabels.Clear();
+            foreach (var label in labels)
+            {
+                AvailableLabels.Add(label);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading available labels: {ex.Message}");
+        }
+    }
+
+    private async void LabelDropdown_ItemSelected(object? sender, SelectedItemChangedEventArgs e)
+    {
+        if (currentPhoto == null || e.SelectedItem == null)
+            return;
+
+        var selectedLabel = e.SelectedItem as string;
+        if (string.IsNullOrEmpty(selectedLabel))
+            return;
+
+        System.Diagnostics.Debug.WriteLine($"ItemSelected: {selectedLabel}");
+        
+        // Clear selection immediately to allow re-selection
+        if (sender is ListView listView)
+        {
+            listView.SelectedItem = null;
+        }
+        
+        await AddLabelFromDropdown(selectedLabel);
+    }
+
+    private async void OnLabelItemTapped(object? sender, TappedEventArgs e)
+    {
+        if (currentPhoto == null)
+            return;
+
+        // Get the label text from the binding context
+        string? selectedLabel = null;
+        
+        // Try to get from Grid (in ViewCell)
+        if (sender is Grid grid)
+        {
+            if (grid.BindingContext is string gridLabel)
+            {
+                selectedLabel = gridLabel;
+            }
+            else if (grid.Parent is ViewCell viewCell && viewCell.BindingContext is string cellLabel)
+            {
+                selectedLabel = cellLabel;
+            }
+        }
+        else if (sender is ViewCell viewCell2 && viewCell2.BindingContext is string cellLabel2)
+        {
+            selectedLabel = cellLabel2;
+        }
+        else if (sender is VisualElement element)
+        {
+            // Walk up the visual tree to find the ViewCell
+            var parent = element.Parent;
+            while (parent != null)
+            {
+                if (parent is ViewCell vc && vc.BindingContext is string vcLabel)
+                {
+                    selectedLabel = vcLabel;
+                    break;
+                }
+                parent = parent.Parent;
+            }
+        }
+
+        if (!string.IsNullOrEmpty(selectedLabel))
+        {
+            System.Diagnostics.Debug.WriteLine($"Label tapped: {selectedLabel}");
+            await AddLabelFromDropdown(selectedLabel);
+        }
+        else
+        {
+            System.Diagnostics.Debug.WriteLine("Could not get label from tapped element");
+        }
+    }
+
+    private async Task AddLabelFromDropdown(string selectedLabel)
+    {
+        // Hide dropdown
+        LabelDropdown.IsVisible = false;
+
+        // Add the selected label to the photo
+        try
+        {
+            System.Diagnostics.Debug.WriteLine($"Adding label from dropdown: '{selectedLabel}' to photo ID: {currentPhoto.Id}");
+            
+            var result = await _databaseService.AddLabelAsync(currentPhoto.Id, selectedLabel);
+            
+            if (result == 0)
+            {
+                // Label already exists (case-insensitive)
+                await Application.Current.MainPage.DisplayAlert("Label bestaat al", $"Het label '{selectedLabel}' bestaat al voor deze foto.", "OK");
+                return;
+            }
+            
+            // Reload labels from database to ensure consistency
+            await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
+            
+            DisplayLabels(currentPhoto);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error adding label from dropdown: {ex.Message}\n{ex.StackTrace}");
+            await Application.Current.MainPage.DisplayAlert("Error", $"Failed to add label: {ex.Message}", "OK");
         }
     }
 
@@ -413,7 +655,7 @@ public partial class Gallery : ContentPage
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Error", $"Failed to remove label: {ex.Message}", "OK");
+                await Application.Current.MainPage.DisplayAlert("Error", $"Failed to remove label: {ex.Message}", "OK");
             }
         }
     }
