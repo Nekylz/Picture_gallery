@@ -27,10 +27,10 @@ public partial class Gallery : ContentPage
         BindingContext = this;
         _databaseService = new DatabaseService();
         
-        // Explicitly set ItemsSource to ensure binding works
+        // Stel expliciet ItemsSource in om ervoor te zorgen dat de binding werkt
         PhotosCollection.ItemsSource = Photos;
         
-        // Load photos immediately since OnAppearing might not be called when used as ContentView
+        // Laad foto's direct omdat OnAppearing mogelijk niet wordt aangeroepen wanneer Gallery als ContentView wordt gebruikt
         _ = LoadPhotosFromDatabaseAsync();
     }
 
@@ -42,7 +42,7 @@ public partial class Gallery : ContentPage
     }
 
     /// <summary>
-    /// Load all photos from the database
+    /// Laad alle foto's uit de database en toon ze in de UI
     /// </summary>
     private async Task LoadPhotosFromDatabaseAsync()
     {
@@ -53,6 +53,7 @@ public partial class Gallery : ContentPage
             
             System.Diagnostics.Debug.WriteLine($"Retrieved {photos.Count} photos from database");
             
+            // UI updates moeten op de main thread gebeuren
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 Photos.Clear();
@@ -98,7 +99,7 @@ public partial class Gallery : ContentPage
                     {
                         try
                         {
-                            // Save photo to database first (this sets the Id)
+                            // Sla foto eerst op in de database (dit zet de Id)
                             await _databaseService.AddPhotoAsync(photo);
                             System.Diagnostics.Debug.WriteLine($"Photo saved to database with ID: {photo.Id}");
                         }
@@ -109,11 +110,12 @@ public partial class Gallery : ContentPage
                             continue;
                         }
                         
-                        // Ensure ImageSource is set (should already be set in CreatePhotoItemAsync)
+                        // Zorg ervoor dat ImageSource is ingesteld (zou al moeten zijn ingesteld in CreatePhotoItemAsync)
                         if (photo.ImageSource == null)
                         {
                             if (photo.FileExists)
                             {
+                                // ImageSource moet op de main thread worden ingesteld
                                 await MainThread.InvokeOnMainThreadAsync(() =>
                                 {
                                     photo.ImageSource = ImageSource.FromFile(photo.FilePath);
@@ -126,7 +128,7 @@ public partial class Gallery : ContentPage
                             }
                         }
                         
-                        // Verify ImageSource is set and file exists before adding
+                        // Verifieer dat ImageSource is ingesteld en bestand bestaat voordat we het toevoegen
                         if (photo.ImageSource != null && photo.FileExists)
                         {
                             System.Diagnostics.Debug.WriteLine($"Adding photo: {photo.FileName}, Path: {photo.FilePath}, ImageSource: {photo.ImageSource != null}, Id: {photo.Id}");
@@ -139,20 +141,20 @@ public partial class Gallery : ContentPage
                     }
                 }
 
-                // Add to collection and force UI refresh
+                // Voeg toe aan collectie en forceer UI refresh
                 if (addedPhotos.Any())
                 {
-                    // Add photos to collection (newest first) - do this on main thread
+                    // Voeg foto's toe aan collectie (nieuwste eerst) - doe dit op de main thread
                     await MainThread.InvokeOnMainThreadAsync(() =>
                     {
                         foreach (var photo in addedPhotos)
                         {
-                            Photos.Insert(0, photo);
+                            Photos.Insert(0, photo); // Insert aan het begin voor nieuwste eerst
                         }
                         
                         PhotoCountLabel.IsVisible = Photos.Count > 0;
                         
-                        // Explicitly set ItemsSource to ensure UI updates
+                        // Stel expliciet ItemsSource in om ervoor te zorgen dat de UI wordt bijgewerkt
                         PhotosCollection.ItemsSource = Photos;
                     });
 
@@ -173,34 +175,38 @@ public partial class Gallery : ContentPage
         }
     }
 
+    /// <summary>
+    /// Maakt een PhotoItem aan van een geselecteerd bestand
+    /// Kopieert het bestand naar permanente opslag en leest de afbeeldingsafmetingen
+    /// </summary>
     private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult result)
     {
-        // Always copy to permanent storage location
+        // Kopieer altijd naar permanente opslaglocatie (niet naar cache)
         var photosDirectory = Path.Combine(FileSystem.AppDataDirectory, "Photos");
         if (!Directory.Exists(photosDirectory))
         {
             Directory.CreateDirectory(photosDirectory);
         }
 
-        // Generate unique filename to avoid conflicts
+        // Genereer unieke bestandsnaam om conflicten te voorkomen
         var extension = Path.GetExtension(result.FileName);
         var uniqueFileName = $"{Guid.NewGuid()}{extension}";
         var permanentPath = Path.Combine(photosDirectory, uniqueFileName);
 
-        // Copy file to permanent location
+        // Kopieer bestand naar permanente locatie
         await using (var pickedStream = await result.OpenReadAsync())
         {
             await using (var permanentFile = File.Create(permanentPath))
             {
                 await pickedStream.CopyToAsync(permanentFile);
-                await permanentFile.FlushAsync(); // Ensure file is fully written
-            } // File stream is closed here
-        } // Picked stream is closed here
+                await permanentFile.FlushAsync(); // Zorg ervoor dat bestand volledig is geschreven
+            } // File stream wordt hier gesloten
+        } // Picked stream wordt hier gesloten
 
-        // Small delay to ensure file system has released the file
+        // Korte vertraging om ervoor te zorgen dat het bestandssysteem het bestand heeft vrijgegeven
         await Task.Delay(50);
 
-        // Verify file exists and has content
+        // Verifieer dat bestand bestaat en inhoud heeft
         if (!File.Exists(permanentPath))
         {
             System.Diagnostics.Debug.WriteLine($"File was not created: {permanentPath}");
@@ -214,7 +220,8 @@ public partial class Gallery : ContentPage
             return null;
         }
 
-        // Read image dimensions - retry if file is locked
+        // Lees afbeeldingsafmetingen - probeer opnieuw als bestand is vergrendeld
+        // Dit kan gebeuren als het bestand nog niet volledig is vrijgegeven door het OS
         int width = 0, height = 0;
         int retries = 3;
         bool success = false;
@@ -236,6 +243,7 @@ public partial class Gallery : ContentPage
             }
             catch (IOException ex)
             {
+                // Bestand is mogelijk nog vergrendeld, probeer opnieuw
                 retries--;
                 if (retries > 0)
                 {
@@ -259,15 +267,15 @@ public partial class Gallery : ContentPage
 
         var photo = new PhotoItem
         {
-            FileName = result.FileName, // Keep original filename for display
-            FilePath = permanentPath,   // Store permanent path in database
+            FileName = result.FileName, // Bewaar originele bestandsnaam voor weergave
+            FilePath = permanentPath,   // Bewaar permanente pad in database
             Width = width,
             Height = height,
             FileSizeMb = fileSizeMB
         };
 
-        // Initialize ImageSource immediately - use FromFile directly
-        // This must be done on main thread for MAUI
+        // Initialiseer ImageSource direct - gebruik FromFile direct
+        // Dit moet op de main thread gebeuren voor MAUI
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             photo.ImageSource = ImageSource.FromFile(permanentPath);
@@ -295,7 +303,7 @@ public partial class Gallery : ContentPage
         if (photo.ImageSource == null)
             return;
 
-        // Ensure labels are loaded from database
+        // Zorg ervoor dat labels uit de database zijn geladen
         if (photo.Id > 0)
         {
             await _databaseService.LoadLabelsForPhotoAsync(photo);
@@ -334,14 +342,15 @@ public partial class Gallery : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"Attempting to add label: '{newLabel}' to photo ID: {currentPhoto.Id}");
             
-            // Add label to database (returns 0 if label already exists, > 0 if added)
+            // Voeg label toe aan database (retourneert 0 als label al bestaat, > 0 als toegevoegd)
+            // Labels zijn case-insensitive (hoofdletterongevoelig)
             var result = await _databaseService.AddLabelAsync(currentPhoto.Id, newLabel);
             
             System.Diagnostics.Debug.WriteLine($"AddLabelAsync returned: {result}");
             
             if (result == 0)
             {
-                // Label already exists (case-insensitive)
+                // Label bestaat al (case-insensitive)
                 System.Diagnostics.Debug.WriteLine($"Label '{newLabel}' already exists for photo {currentPhoto.Id}");
                 await Application.Current.MainPage.DisplayAlert("Label bestaat al", $"Het label '{newLabel}' bestaat al voor deze foto.", "OK");
                 LabelEntry.Text = string.Empty;
@@ -350,7 +359,7 @@ public partial class Gallery : ContentPage
             
             System.Diagnostics.Debug.WriteLine($"Label '{newLabel}' successfully added with ID: {result}");
             
-            // Reload labels from database to ensure consistency
+            // Herlaad labels uit database om consistentie te garanderen
             await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
             
             LabelEntry.Text = string.Empty;
@@ -363,6 +372,10 @@ public partial class Gallery : ContentPage
         }
     }
 
+    /// <summary>
+    /// Handelt klik op de Labels dropdown knop af
+    /// Laadt alle beschikbare labels en toont ze in een dropdown menu
+    /// </summary>
     private async void LabelDropdownButton_Clicked(object? sender, EventArgs e)
     {
         if (currentPhoto == null)
@@ -371,14 +384,14 @@ public partial class Gallery : ContentPage
             return;
         }
 
-        // Toggle dropdown visibility
+        // Toggle dropdown zichtbaarheid
         if (LabelDropdown.IsVisible)
         {
             LabelDropdown.IsVisible = false;
         }
         else
         {
-            // Load all available labels
+            // Laad alle beschikbare labels uit de database
             await LoadAvailableLabelsAsync();
             
             if (AvailableLabels.Count == 0)
@@ -387,18 +400,18 @@ public partial class Gallery : ContentPage
                 return;
             }
             
-            // Clear existing items and row definitions
+            // Wis bestaande items en row definitions
             LabelDropdownList.Children.Clear();
             LabelDropdownList.RowDefinitions.Clear();
             
-            // Create row definitions for each label
+            // Maak row definitions voor elk label
             for (int i = 0; i < AvailableLabels.Count; i++)
             {
                 LabelDropdownList.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
             }
             
-            // Create a clickable Frame for each label
-            // Place each frame in its own row to ensure full width
+            // Maak een klikbare Frame voor elk label
+            // Plaats elke frame in zijn eigen row om volledige breedte te garanderen
             for (int i = 0; i < AvailableLabels.Count; i++)
             {
                 var label = AvailableLabels[i];
@@ -422,15 +435,15 @@ public partial class Gallery : ContentPage
                     TextColor = Colors.Black,
                     VerticalOptions = LayoutOptions.Center,
                     HorizontalOptions = LayoutOptions.Start,
-                    InputTransparent = true
+                    InputTransparent = true // Laat klikken door naar parent frame
                 };
                 
                 frame.Content = labelText;
                 
-                // Store the label for the click handler
+                // Bewaar het label voor de click handler (closure)
                 string capturedLabel = label;
                 
-                // Add tap gesture to the frame
+                // Voeg tap gesture toe aan de frame
                 var tapGesture = new TapGestureRecognizer();
                 tapGesture.Tapped += async (s, e) =>
                 {
@@ -439,26 +452,17 @@ public partial class Gallery : ContentPage
                 };
                 frame.GestureRecognizers.Add(tapGesture);
                 
-                // Add frame to Grid in its own row
+                // Voeg frame toe aan Grid in zijn eigen row
                 Grid.SetRow(frame, i);
                 LabelDropdownList.Children.Add(frame);
             }
             
             System.Diagnostics.Debug.WriteLine($"Created {AvailableLabels.Count} label items in dropdown");
             
-            // Position dropdown directly under the Labels button
-            // The StackLayout is centered, and the button is the first element (80px wide)
-            // The dropdown is 200px wide, so to align it with the button's left edge,
-            // we need to shift it left. Since the Grid is centered and the dropdown has HorizontalOptions="Start",
-            // it aligns to the Grid's left edge. We need to shift it left by approximately
-            // half the StackLayout width minus half the dropdown width to align with the button.
-            // StackLayout width ≈ 80 + 5 + 160 + 5 + 80 = 330px
-            // To align dropdown (200px) with button (80px) that's at position (330-80)/2 = 125px from Grid left,
-            // we shift left by: 125 - (200-80)/2 = 125 - 60 = 65px
-            // Actually simpler: shift left by the button's position relative to Grid center
-            // For now, let's use a negative margin to shift it left
-            // The button starts at approximately 125px from Grid left (half of 330 - half of 80)
-            // So we shift the dropdown left by 125px to align with button's left edge
+            // Positioneer dropdown direct onder de Labels knop
+            // De StackLayout is gecentreerd, en de knop is het eerste element (80px breed)
+            // De dropdown is 200px breed, dus om hem uit te lijnen met de linkerrand van de knop,
+            // moeten we hem naar links verschuiven met een negatieve margin
             LabelDropdown.Margin = new Thickness(-125, 5, 0, 0);
             LabelDropdown.IsVisible = true;
         }
@@ -661,7 +665,8 @@ public partial class Gallery : ContentPage
     }
 
     /// <summary>
-    /// Clear all photos from database and file system (for testing)
+    /// Verwijdert alle foto's uit de database en het bestandssysteem (voor testing)
+    /// Let op: deze methode verwijdert alle data permanent!
     /// </summary>
     private async Task ClearAllPhotosAsync()
     {
@@ -669,10 +674,10 @@ public partial class Gallery : ContentPage
         {
             System.Diagnostics.Debug.WriteLine("Clearing all photos from database...");
             
-            // Get all photos first to delete their files
+            // Haal eerst alle foto's op om hun bestanden te verwijderen
             var allPhotos = await _databaseService.GetAllPhotosAsync();
             
-            // Delete photo files from disk
+            // Verwijder foto bestanden van schijf
             foreach (var photo in allPhotos)
             {
                 try
@@ -689,10 +694,10 @@ public partial class Gallery : ContentPage
                 }
             }
             
-            // Clear database
+            // Wis database
             await _databaseService.ClearAllDataAsync();
             
-            // Clear UI collection
+            // Wis UI collectie (moet op main thread)
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 Photos.Clear();
@@ -714,6 +719,10 @@ public partial class Gallery : ContentPage
         return !string.IsNullOrWhiteSpace(extension) && AllowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Toggle de zichtbaarheid van de sidebar en past de kolombreedte aan
+    /// Wanneer sidebar open is: breedte 220px, wanneer gesloten: breedte 0px
+    /// </summary>
     private void ToggleSidebar_Clicked(object? sender, EventArgs e)
     {
         if (Sidebar != null && MainGrid != null && MainGrid.ColumnDefinitions.Count > 0)
@@ -721,15 +730,15 @@ public partial class Gallery : ContentPage
             bool isVisible = Sidebar.IsVisible;
             Sidebar.IsVisible = !isVisible;
             
-            // Adjust column width: 220 when open, 0 when closed
+            // Pas kolombreedte aan: 220px wanneer open, 0px wanneer gesloten
             if (isVisible)
             {
-                // Sidebar is open, close it
+                // Sidebar is open, sluit hem
                 MainGrid.ColumnDefinitions[0].Width = 0;
             }
             else
             {
-                // Sidebar is closed, open it
+                // Sidebar is gesloten, open hem
                 MainGrid.ColumnDefinitions[0].Width = 220;
             }
         }
@@ -740,11 +749,109 @@ public partial class Gallery : ContentPage
         // Call the existing UploadMedia method
         UploadMedia(sender ?? this, EventArgs.Empty);
     }
+    /// <summary>
+    /// Navigeert naar de PhotoBook pagina wanneer op de Photo Book knop wordt geklikt
+    /// Probeert meerdere navigatiemethoden omdat Gallery als ContentView wordt gebruikt
+    /// en mogelijk geen directe Navigation heeft
+    /// </summary>
     private async void OpenPhotoBook_Tapped(object sender, TappedEventArgs e)
     {
-        if (Navigation != null)
+        try
         {
-            await Navigation.PushAsync(new PhotoBookPage());
+            System.Diagnostics.Debug.WriteLine("OpenPhotoBook_Tapped called");
+            
+            // Probeer eerst via Shell.Current (meest betrouwbaar voor Shell-based apps)
+            if (Shell.Current != null)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Attempting navigation via Shell.Current.Navigation");
+                    await Shell.Current.Navigation.PushAsync(new PhotoBookPage());
+                    System.Diagnostics.Debug.WriteLine("Navigation successful via Shell.Current");
+                    return;
+                }
+                catch (Exception shellEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Shell navigation failed: {shellEx.Message}");
+                }
+            }
+
+            // Zoek de parent ContentPage (MyMainPage) door de parent chain te doorlopen
+            var parent = this.Parent;
+            ContentPage? parentPage = null;
+            
+            while (parent != null)
+            {
+                if (parent is ContentPage cp)
+                {
+                    parentPage = cp;
+                    break;
+                }
+                parent = parent.Parent;
+            }
+
+            // Probeer via parent ContentPage
+            if (parentPage != null && parentPage.Navigation != null)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Attempting navigation via parent ContentPage");
+                    await parentPage.Navigation.PushAsync(new PhotoBookPage());
+                    System.Diagnostics.Debug.WriteLine("Navigation successful via parent ContentPage");
+                    return;
+                }
+                catch (Exception parentEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Parent navigation failed: {parentEx.Message}");
+                }
+            }
+
+            // Als parent MyMainPage is, probeer zijn NavigateToPhotoBookAsync methode
+            if (parentPage is MyMainPage myMainPage)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Calling MyMainPage.NavigateToPhotoBookAsync");
+                    await myMainPage.NavigateToPhotoBookAsync();
+                    System.Diagnostics.Debug.WriteLine("Navigation successful via MyMainPage method");
+                    return;
+                }
+                catch (Exception mainPageEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"MyMainPage navigation failed: {mainPageEx.Message}");
+                }
+            }
+
+            // Fallback: probeer via Application.Current.MainPage
+            if (Application.Current?.MainPage != null)
+            {
+                try
+                {
+                    System.Diagnostics.Debug.WriteLine("Attempting navigation via Application.Current.MainPage");
+                    await Application.Current.MainPage.Navigation.PushAsync(new PhotoBookPage());
+                    System.Diagnostics.Debug.WriteLine("Navigation successful via Application.Current.MainPage");
+                    return;
+                }
+                catch (Exception appEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Application navigation failed: {appEx.Message}");
+                }
+            }
+
+            System.Diagnostics.Debug.WriteLine("All navigation methods failed!");
+            if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Error", "Could not navigate to Photo Book page. Please check the debug output.", "OK");
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookPage: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
+            if (Application.Current?.MainPage != null)
+            {
+                await Application.Current.MainPage.DisplayAlert("Error", $"Could not open Photo Book: {ex.Message}", "OK");
+            }
         }
     }
 

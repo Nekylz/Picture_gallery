@@ -1,4 +1,7 @@
 ﻿using System.Collections.ObjectModel;
+using PictureGallery.Models;
+
+namespace PictureGallery.Models;
 
 public class PhotoBookPageModel
 {

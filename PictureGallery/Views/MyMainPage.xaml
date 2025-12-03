@@ -8,14 +8,12 @@
     <ContentPage.ToolbarItems>
         <ToolbarItem Text="Page1" Clicked="OnPage1Clicked"/>
         <ToolbarItem Text="Gallery" Clicked="OnPage2Clicked"/>
-        <ToolbarItem Text="Fotoboek" Clicked="OpenPhotoBook_Clicked"/>
     </ContentPage.ToolbarItems>
 
     <ContentPage.MenuBarItems>
         <MenuBarItem Text="Pages">
             <MenuFlyoutItem Text="Page1" Clicked="OnPage1Clicked"/>
             <MenuFlyoutItem Text="Gallery" Clicked="OnPage2Clicked"/>
-            <MenuFlyoutItem Text="Fotoboek" Clicked="OpenPhotoBook_Clicked"/>
         </MenuBarItem>
     </ContentPage.MenuBarItems>
 

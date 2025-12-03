@@ -17,6 +17,9 @@ public class DatabaseService
         _databasePath = Path.Combine(FileSystem.AppDataDirectory, "picturegallery.db3");
     }
 
+    /// <summary>
+    /// Haalt de database connectie op, maakt deze aan als deze nog niet bestaat
+    /// </summary>
     private async Task<SQLiteAsyncConnection> GetDatabaseAsync()
     {
         if (_database != null)
@@ -27,12 +30,15 @@ public class DatabaseService
         return _database;
     }
 
+    /// <summary>
+    /// Initialiseert de database en maakt tabellen aan als ze nog niet bestaan
+    /// </summary>
     private async Task InitializeDatabaseAsync()
     {
         if (_database == null)
             return;
 
-        // Create tables if they don't exist
+        // Maak tabellen aan als ze nog niet bestaan
         await _database.CreateTableAsync<PhotoItem>();
         await _database.CreateTableAsync<PhotoLabel>();
         
@@ -42,15 +48,15 @@ public class DatabaseService
     // ========== PHOTO OPERATIONS ==========
 
     /// <summary>
-    /// Add a new photo to the database
+    /// Voegt een nieuwe foto toe aan de database
     /// </summary>
     public async Task<int> AddPhotoAsync(PhotoItem photo)
     {
         var db = await GetDatabaseAsync();
         photo.CreatedDate = DateTime.Now;
         var result = await db.InsertAsync(photo);
-        // InsertAsync returns the number of rows affected, but with AutoIncrement,
-        // the Id property is automatically set on the photo object
+        // InsertAsync retourneert het aantal aangepaste rijen, maar met AutoIncrement
+        // wordt de Id property automatisch ingesteld op het photo object
         System.Diagnostics.Debug.WriteLine($"Photo saved to database: Id={photo.Id}, FileName={photo.FileName}, FilePath={photo.FilePath}");
         return photo.Id;
     }
@@ -65,12 +71,12 @@ public class DatabaseService
         
         System.Diagnostics.Debug.WriteLine($"Loaded {photos.Count} photos from database");
         
-        // Load labels and initialize ImageSource for each photo
+        // Laad labels en initialiseer ImageSource voor elke foto
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
             
-            // Only set ImageSource if file exists
+            // Stel alleen ImageSource in als bestand bestaat
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
@@ -147,26 +153,27 @@ public class DatabaseService
     // ========== LABEL OPERATIONS ==========
 
     /// <summary>
-    /// Add a label to a photo (case-insensitive)
-    /// Returns the label ID if successful, or 0 if label already exists
+    /// Voegt een label toe aan een foto (hoofdletterongevoelig)
+    /// Retourneert het label ID als succesvol, of 0 als label al bestaat
     /// </summary>
     public async Task<int> AddLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
         
-        // Get all labels for this photo and check case-insensitively
+        // Haal alle labels voor deze foto op en controleer hoofdletterongevoelig
         var existingLabels = await db.Table<PhotoLabel>()
             .Where(l => l.PhotoId == photoId)
             .ToListAsync();
 
-        // Check if label already exists (case-insensitive)
+        // Controleer of label al bestaat (hoofdletterongevoelig)
+        // Gebruik StringComparison.OrdinalIgnoreCase voor case-insensitive vergelijking
         var existingLabel = existingLabels
             .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
 
         if (existingLabel != null)
         {
             System.Diagnostics.Debug.WriteLine($"Label '{labelText}' already exists for photo {photoId} (existing: '{existingLabel.LabelText}')");
-            return 0; // Label already exists (case-insensitive)
+            return 0; // Label bestaat al (hoofdletterongevoelig)
         }
 
         var label = new PhotoLabel
@@ -179,7 +186,7 @@ public class DatabaseService
         var result = await db.InsertAsync(label);
         System.Diagnostics.Debug.WriteLine($"Label '{labelText}' added successfully with ID: {label.Id}, InsertAsync returned: {result}");
         
-        // Return the label ID (label.Id is set by InsertAsync for AutoIncrement)
+        // Retourneer het label ID (label.Id wordt ingesteld door InsertAsync voor AutoIncrement)
         return label.Id > 0 ? label.Id : (result > 0 ? result : 1);
     }
 
@@ -209,18 +216,19 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Remove a label from a photo (case-insensitive)
+    /// Verwijdert een label van een foto (hoofdletterongevoelig)
     /// </summary>
     public async Task<int> RemoveLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
         
-        // Get all labels for this photo
+        // Haal alle labels voor deze foto op
         var labels = await db.Table<PhotoLabel>()
             .Where(l => l.PhotoId == photoId)
             .ToListAsync();
         
-        // Find label case-insensitively
+        // Zoek label hoofdletterongevoelig
+        // Gebruik StringComparison.OrdinalIgnoreCase voor case-insensitive vergelijking
         var labelToDelete = labels
             .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
         
@@ -242,17 +250,18 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Get all unique labels across all photos (case-insensitive distinct)
+    /// Haalt alle unieke labels op van alle foto's (hoofdletterongevoelig distinct)
     /// </summary>
     public async Task<List<string>> GetAllUniqueLabelsAsync()
     {
         var db = await GetDatabaseAsync();
         var labels = await db.Table<PhotoLabel>().ToListAsync();
         
-        // Group by case-insensitive label text and take the first occurrence
+        // Groepeer op hoofdletterongevoelige label tekst en neem het eerste voorkomen
+        // Gebruik StringComparer.OrdinalIgnoreCase voor case-insensitive groepering
         var uniqueLabels = labels
             .GroupBy(l => l.LabelText, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First().LabelText) // Keep original casing of first occurrence
+            .Select(g => g.First().LabelText) // Behoud originele hoofdletters van eerste voorkomen
             .OrderBy(l => l, StringComparer.OrdinalIgnoreCase)
             .ToList();
         
@@ -260,13 +269,14 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Get all photos with a specific label (case-insensitive)
+    /// Haalt alle foto's op met een specifiek label (hoofdletterongevoelig)
     /// </summary>
     public async Task<List<PhotoItem>> GetPhotosByLabelAsync(string labelText)
     {
         var db = await GetDatabaseAsync();
         
-        // Get all labels and filter case-insensitively
+        // Haal alle labels op en filter hoofdletterongevoelig
+        // We doen dit in memory omdat SQLite case-sensitive is en we case-insensitive willen filteren
         var allLabels = await db.Table<PhotoLabel>().ToListAsync();
         var matchingLabels = allLabels
             .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
@@ -277,18 +287,18 @@ public class DatabaseService
         if (!photoIds.Any())
             return new List<PhotoItem>();
 
-        // Get photos with those IDs
+        // Haal foto's op met die IDs, gesorteerd op nieuwste eerst
         var photos = await db.Table<PhotoItem>()
             .Where(p => photoIds.Contains(p.Id))
             .OrderByDescending(p => p.CreatedDate)
             .ToListAsync();
 
-        // Load labels and initialize ImageSource for each photo
+        // Laad labels en initialiseer ImageSource voor elke foto
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
             
-            // Only set ImageSource if file exists
+            // Stel alleen ImageSource in als bestand bestaat
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
