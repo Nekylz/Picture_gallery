@@ -21,5 +21,8 @@
 
     <ScrollView VerticalOptions="Fill"
                 HorizontalOptions="Fill">
+        <VerticalStackLayout>
+            <ContentView x:Name="SubPage" />
+        </VerticalStackLayout>
     </ScrollView>
 </ContentPage>
