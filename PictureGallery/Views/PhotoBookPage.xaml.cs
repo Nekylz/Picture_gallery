@@ -83,12 +83,34 @@ public partial class PhotoBookPage : ContentPage
             filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
             await using var tempFile = File.Create(filePath);
             await pickedStream.CopyToAsync(tempFile);
+            await tempFile.FlushAsync(); // Ensure all data is written to disk
+        }
+
+        // Read image dimensions using SkiaSharp
+        int width = 0, height = 0;
+        try
+        {
+            using (var stream = File.OpenRead(filePath))
+            using (var bitmap = SkiaSharp.SKBitmap.Decode(stream))
+            {
+                if (bitmap != null)
+                {
+                    width = bitmap.Width;
+                    height = bitmap.Height;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error reading image dimensions: {ex.Message}");
         }
 
         return new PhotoItem
         {
             FileName = result.FileName,
             FilePath = filePath,
+            Width = width,
+            Height = height,
             ImageSource = ImageSource.FromFile(filePath)
         };
     }

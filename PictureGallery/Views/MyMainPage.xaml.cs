@@ -9,19 +9,19 @@ public partial class MyMainPage : ContentPage
         InitializeComponent();
 
         // Standaard Gallery tonen
-        Content = new ContentView { Content = new Views.Gallery().Content };
+        SubPage.Content = new Views.Gallery().Content;
     }
 
     // Navigatie naar Page1
     void OnPage1Clicked(object sender, EventArgs e)
     {
-        Content = new ContentView { Content = new Views.NewPage1().Content };
+        SubPage.Content = new Views.NewPage1().Content;
     }
 
     // Navigatie naar Gallery
     void OnPage2Clicked(object sender, EventArgs e)
     {
-        Content = new ContentView { Content = new Views.Gallery().Content };
+        SubPage.Content = new Views.Gallery().Content;
     }
 
     // Navigatie naar PhotoBookPage (kan worden aangeroepen vanuit Gallery)

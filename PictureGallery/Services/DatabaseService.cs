@@ -11,6 +11,7 @@ public class DatabaseService
 {
     private SQLiteAsyncConnection? _database;
     private readonly string _databasePath;
+    private readonly SemaphoreSlim _initLock = new SemaphoreSlim(1, 1);
 
     public DatabaseService()
     {
@@ -25,9 +26,21 @@ public class DatabaseService
         if (_database != null)
             return _database;
 
-        _database = new SQLiteAsyncConnection(_databasePath);
-        await InitializeDatabaseAsync();
-        return _database;
+        await _initLock.WaitAsync();
+        try
+        {
+            // Double-check after acquiring lock
+            if (_database != null)
+                return _database;
+
+            _database = new SQLiteAsyncConnection(_databasePath);
+            await InitializeDatabaseAsync();
+            return _database;
+        }
+        finally
+        {
+            _initLock.Release();
+        }
     }
 
     /// <summary>
@@ -187,7 +200,8 @@ public class DatabaseService
         System.Diagnostics.Debug.WriteLine($"Label '{labelText}' added successfully with ID: {label.Id}, InsertAsync returned: {result}");
         
         // Retourneer het label ID (label.Id wordt ingesteld door InsertAsync voor AutoIncrement)
-        return label.Id > 0 ? label.Id : (result > 0 ? result : 1);
+        // Als beide 0 zijn, retourneer 0 om failure aan te geven (niet 1)
+        return label.Id > 0 ? label.Id : result;
     }
 
     /// <summary>

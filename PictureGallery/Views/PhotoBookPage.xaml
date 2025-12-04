@@ -17,15 +17,16 @@
                             <StackLayout Spacing="10">
 
                                 <!-- 2x2 Grid voor max 4 foto's per pagina -->
-                                <Grid RowDefinitions="*,*"
-                                  ColumnDefinitions="*,*"
-                                  RowSpacing="5"
-                                  ColumnSpacing="5">
-                                    <Image Grid.Row="0" Grid.Column="0" Source="{Binding Photos[0].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
-                                    <Image Grid.Row="0" Grid.Column="1" Source="{Binding Photos[1].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
-                                    <Image Grid.Row="1" Grid.Column="0" Source="{Binding Photos[2].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
-                                    <Image Grid.Row="1" Grid.Column="1" Source="{Binding Photos[3].ImageSource}" Aspect="AspectFit" HeightRequest="150"/>
-                                </Grid>
+                                <CollectionView ItemsSource="{Binding Photos}" HeightRequest="310">
+                                    <CollectionView.ItemsLayout>
+                                        <GridItemsLayout Orientation="Vertical" Span="2" HorizontalItemSpacing="5" VerticalItemSpacing="5" />
+                                    </CollectionView.ItemsLayout>
+                                    <CollectionView.ItemTemplate>
+                                        <DataTemplate>
+                                            <Image Source="{Binding ImageSource}" Aspect="AspectFit" HeightRequest="150" WidthRequest="150"/>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
 
                                 <!-- Titel/tekst per pagina -->
                                 <Entry Text="{Binding Title}" Placeholder="Voeg titel/tekst toe"/>
