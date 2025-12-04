@@ -20,6 +20,10 @@ public partial class Gallery : ContentPage
 
     private PhotoItem? currentPhoto;
     private readonly DatabaseService _databaseService;
+    
+    // Selection mode properties
+    private bool _isSelectionMode = false;
+    private HashSet<PhotoItem> _selectedPhotos = new();
 
     public Gallery()
     {
@@ -290,8 +294,31 @@ public partial class Gallery : ContentPage
     {
         if (e.Parameter is PhotoItem tappedPhoto)
         {
-            currentPhoto = tappedPhoto;
-            await ShowPhotoOverlay(tappedPhoto);
+            // Als we in selectiemodus zijn, toggle de selectie
+            if (_isSelectionMode)
+            {
+                if (_selectedPhotos.Contains(tappedPhoto))
+                {
+                    _selectedPhotos.Remove(tappedPhoto);
+                    tappedPhoto.IsSelected = false;
+                }
+                else
+                {
+                    _selectedPhotos.Add(tappedPhoto);
+                    tappedPhoto.IsSelected = true;
+                }
+                
+                // Update de knop text met aantal geselecteerde foto's
+                SelectButton.Text = $"Cancel ({_selectedPhotos.Count})";
+                
+                System.Diagnostics.Debug.WriteLine($"Selected photos: {_selectedPhotos.Count}");
+            }
+            else
+            {
+                // Normale modus: toon fullscreen overlay
+                currentPhoto = tappedPhoto;
+                await ShowPhotoOverlay(tappedPhoto);
+            }
         }
     }
 
@@ -855,6 +882,121 @@ public partial class Gallery : ContentPage
         }
     }
 
-
+    /// <summary>
+    /// Toggle selectiemodus voor het selecteren van meerdere foto's
+    /// In selectiemodus kunnen gebruikers meerdere foto's selecteren voor batch operaties
+    /// </summary>
+    private async void SelectButton_Clicked(object? sender, EventArgs e)
+    {
+        _isSelectionMode = !_isSelectionMode;
+        
+        if (_isSelectionMode)
+        {
+            // Activeer selectiemodus
+            SelectButton.BackgroundColor = Color.FromArgb("#6750A4");
+            SelectButton.TextColor = Colors.White;
+            SelectButton.Text = $"Cancel ({_selectedPhotos.Count})";
+            
+            await Application.Current.MainPage.DisplayAlert(
+                "Selectiemodus", 
+                "Selecteer foto's door erop te tikken. Tik nogmaals om te deselecteren.", 
+                "OK");
+        }
+        else
+        {
+            // Deactiveer selectiemodus
+            SelectButton.BackgroundColor = Color.FromArgb("#EDEDED");
+            SelectButton.TextColor = Color.FromArgb("#333333");
+            SelectButton.Text = "Select";
+            
+            // Toon opties als er foto's geselecteerd zijn
+            if (_selectedPhotos.Count > 0)
+            {
+                var action = await Application.Current.MainPage.DisplayActionSheet(
+                    $"{_selectedPhotos.Count} foto's geselecteerd",
+                    "Annuleren",
+                    "Verwijderen",
+                    "Exporteer naar Fotoboek",
+                    "Labels toevoegen");
+                
+                switch (action)
+                {
+                    case "Verwijderen":
+                        await DeleteSelectedPhotosAsync();
+                        break;
+                    case "Exporteer naar Fotoboek":
+                        await Application.Current.MainPage.DisplayAlert("Info", "Fotoboek export komt binnenkort!", "OK");
+                        break;
+                    case "Labels toevoegen":
+                        await Application.Current.MainPage.DisplayAlert("Info", "Bulk label toevoegen komt binnenkort!", "OK");
+                        break;
+                }
+            }
+            
+            // Wis selecties en reset visuele feedback
+            foreach (var photo in _selectedPhotos)
+            {
+                photo.IsSelected = false;
+            }
+            _selectedPhotos.Clear();
+        }
+    }
+    
+    /// <summary>
+    /// Verwijdert alle geselecteerde foto's uit de database en van schijf
+    /// </summary>
+    private async Task DeleteSelectedPhotosAsync()
+    {
+        if (_selectedPhotos.Count == 0)
+            return;
+            
+        bool confirm = await Application.Current.MainPage.DisplayAlert(
+            "Bevestig verwijderen",
+            $"Weet je zeker dat je {_selectedPhotos.Count} foto's wilt verwijderen?",
+            "Ja",
+            "Nee");
+            
+        if (!confirm)
+            return;
+            
+        try
+        {
+            var photosToDelete = _selectedPhotos.ToList();
+            
+            foreach (var photo in photosToDelete)
+            {
+                // Reset selectie staat
+                photo.IsSelected = false;
+                
+                // Verwijder bestand van schijf
+                if (File.Exists(photo.FilePath))
+                {
+                    File.Delete(photo.FilePath);
+                }
+                
+                // Verwijder uit database
+                await _databaseService.DeletePhotoAsync(photo);
+                
+                // Verwijder uit UI collectie
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    Photos.Remove(photo);
+                });
+            }
+            
+            await Application.Current.MainPage.DisplayAlert(
+                "Gereed",
+                $"{photosToDelete.Count} foto's verwijderd.",
+                "OK");
+                
+            _selectedPhotos.Clear();
+            PhotoCountLabel.IsVisible = Photos.Count > 0;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error deleting photos: {ex.Message}");
+            await Application.Current.MainPage.DisplayAlert("Error", $"Fout bij verwijderen: {ex.Message}", "OK");
+        }
+    }
 
 }

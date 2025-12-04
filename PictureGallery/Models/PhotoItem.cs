@@ -1,12 +1,15 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.IO;
+using System.Runtime.CompilerServices;
 using SQLite;
 
 namespace PictureGallery.Models;
 
 [Table("Photos")]
-public class PhotoItem
+public class PhotoItem : INotifyPropertyChanged
 {
+    public event PropertyChangedEventHandler? PropertyChanged;
     [PrimaryKey, AutoIncrement]
     public int Id { get; set; }
 
@@ -32,6 +35,22 @@ public class PhotoItem
     // Runtime property - loaded from database separately
     [Ignore]
     public ObservableCollection<string> Labels { get; } = new ObservableCollection<string>();
+    
+    // Selection state for UI (runtime only)
+    private bool _isSelected;
+    [Ignore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     // Computed properties
     [Ignore]
@@ -79,4 +98,12 @@ public class PhotoItem
     /// </summary>
     [Ignore]
     public bool HasLabels => Labels.Count > 0;
+    
+    /// <summary>
+    /// Helper method for property change notification
+    /// </summary>
+    protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
 }

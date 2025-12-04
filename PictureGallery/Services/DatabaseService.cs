@@ -30,12 +30,12 @@ public class DatabaseService
         try
         {
             // Double-check after acquiring lock
-            if (_database != null)
-                return _database;
-
-            _database = new SQLiteAsyncConnection(_databasePath);
-            await InitializeDatabaseAsync();
+        if (_database != null)
             return _database;
+
+        _database = new SQLiteAsyncConnection(_databasePath);
+        await InitializeDatabaseAsync();
+        return _database;
         }
         finally
         {
