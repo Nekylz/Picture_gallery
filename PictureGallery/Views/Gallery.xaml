@@ -102,6 +102,7 @@
                     HorizontalOptions="Start"
                     VerticalOptions="Start"
                     Margin="10"
+                    IsVisible="False"
                     Clicked="ToggleSidebar_Clicked" />
 
             <VerticalStackLayout x:Name="MainContent"
@@ -137,6 +138,16 @@
                             TextColor="#333333"
                             CornerRadius="12"
                             Clicked="SelectButton_Clicked" />
+                        <Button x:Name="SelectionActionsButton"
+                            Text="⋯"
+                            FontSize="24"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="22"
+                            IsVisible="False"
+                            Clicked="SelectionActionsButton_Clicked" />
                     </HorizontalStackLayout>
                 </Grid>
 
@@ -160,12 +171,17 @@
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
                             <Grid>
-                                <Frame HeightRequest="180"
-                                   WidthRequest="180"
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Tapped="OnPhotoTapped"
+                                                      NumberOfTapsRequired="1"
+                                                      CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <Frame HeightRequest="280"
+                                   WidthRequest="380"
                                    Padding="10"
                                    Margin="0"
-                                   HasShadow="False"
-                                   CornerRadius="16"
+                                   HasShadow="True"
+                                   CornerRadius="8"
                                    BackgroundColor="White"
                                    BorderColor="#E0E0E0">
                                     <VisualStateManager.VisualStateGroups>
@@ -191,23 +207,17 @@
                                        Aspect="AspectFit"
                                        HorizontalOptions="Fill"
                                        VerticalOptions="Fill"
-                                       BackgroundColor="White">
-                                        <Image.GestureRecognizers>
-                                            <TapGestureRecognizer Tapped="OnPhotoTapped"
-                                                              NumberOfTapsRequired="1"
-                                                              CommandParameter="{Binding .}" />
-                                        </Image.GestureRecognizers>
-                                    </Image>
+                                       BackgroundColor="White" />
                                 </Frame>
                                 
                                 <!-- Selectie Indicator (wordt getoond via IsSelected property) -->
                                 <Frame x:Name="SelectionOverlay"
-                                       HeightRequest="180"
-                                       WidthRequest="180"
+                                       HeightRequest="280"
+                                       WidthRequest="380"
                                        Padding="0"
                                        Margin="0"
                                        HasShadow="False"
-                                       CornerRadius="16"
+                                       CornerRadius="8"
                                        BackgroundColor="#806750A4"
                                        BorderColor="#6750A4"
                                        IsVisible="{Binding IsSelected}"

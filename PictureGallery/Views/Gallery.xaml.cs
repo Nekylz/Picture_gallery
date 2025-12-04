@@ -886,7 +886,7 @@ public partial class Gallery : ContentPage
     /// Toggle selectiemodus voor het selecteren van meerdere foto's
     /// In selectiemodus kunnen gebruikers meerdere foto's selecteren voor batch operaties
     /// </summary>
-    private async void SelectButton_Clicked(object? sender, EventArgs e)
+    private void SelectButton_Clicked(object? sender, EventArgs e)
     {
         _isSelectionMode = !_isSelectionMode;
         
@@ -897,10 +897,8 @@ public partial class Gallery : ContentPage
             SelectButton.TextColor = Colors.White;
             SelectButton.Text = $"Cancel ({_selectedPhotos.Count})";
             
-            await Application.Current.MainPage.DisplayAlert(
-                "Selectiemodus", 
-                "Selecteer foto's door erop te tikken. Tik nogmaals om te deselecteren.", 
-                "OK");
+            // Toon de acties knop
+            SelectionActionsButton.IsVisible = true;
         }
         else
         {
@@ -909,29 +907,8 @@ public partial class Gallery : ContentPage
             SelectButton.TextColor = Color.FromArgb("#333333");
             SelectButton.Text = "Select";
             
-            // Toon opties als er foto's geselecteerd zijn
-            if (_selectedPhotos.Count > 0)
-            {
-                var action = await Application.Current.MainPage.DisplayActionSheet(
-                    $"{_selectedPhotos.Count} foto's geselecteerd",
-                    "Annuleren",
-                    "Verwijderen",
-                    "Exporteer naar Fotoboek",
-                    "Labels toevoegen");
-                
-                switch (action)
-                {
-                    case "Verwijderen":
-                        await DeleteSelectedPhotosAsync();
-                        break;
-                    case "Exporteer naar Fotoboek":
-                        await Application.Current.MainPage.DisplayAlert("Info", "Fotoboek export komt binnenkort!", "OK");
-                        break;
-                    case "Labels toevoegen":
-                        await Application.Current.MainPage.DisplayAlert("Info", "Bulk label toevoegen komt binnenkort!", "OK");
-                        break;
-                }
-            }
+            // Verberg de acties knop
+            SelectionActionsButton.IsVisible = false;
             
             // Wis selecties en reset visuele feedback
             foreach (var photo in _selectedPhotos)
@@ -939,6 +916,38 @@ public partial class Gallery : ContentPage
                 photo.IsSelected = false;
             }
             _selectedPhotos.Clear();
+        }
+    }
+    
+    /// <summary>
+    /// Toont het actiemenu voor geselecteerde foto's
+    /// </summary>
+    private async void SelectionActionsButton_Clicked(object? sender, EventArgs e)
+    {
+        if (_selectedPhotos.Count == 0)
+        {
+            await Application.Current.MainPage.DisplayAlert("Geen selectie", "Selecteer eerst foto's om acties uit te voeren.", "OK");
+            return;
+        }
+        
+        var action = await Application.Current.MainPage.DisplayActionSheet(
+            $"{_selectedPhotos.Count} foto's geselecteerd",
+            "Annuleren",
+            "Verwijderen",
+            "Exporteer naar Fotoboek",
+            "Labels toevoegen");
+        
+        switch (action)
+        {
+            case "Verwijderen":
+                await DeleteSelectedPhotosAsync();
+                break;
+            case "Exporteer naar Fotoboek":
+                await Application.Current.MainPage.DisplayAlert("Info", "Fotoboek export komt binnenkort!", "OK");
+                break;
+            case "Labels toevoegen":
+                await Application.Current.MainPage.DisplayAlert("Info", "Bulk label toevoegen komt binnenkort!", "OK");
+                break;
         }
     }
     
@@ -991,6 +1000,13 @@ public partial class Gallery : ContentPage
                 
             _selectedPhotos.Clear();
             PhotoCountLabel.IsVisible = Photos.Count > 0;
+            
+            // Schakel selectiemodus uit na verwijderen
+            _isSelectionMode = false;
+            SelectButton.BackgroundColor = Color.FromArgb("#EDEDED");
+            SelectButton.TextColor = Color.FromArgb("#333333");
+            SelectButton.Text = "Select";
+            SelectionActionsButton.IsVisible = false;
         }
         catch (Exception ex)
         {
