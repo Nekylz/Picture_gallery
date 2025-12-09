@@ -173,25 +173,25 @@
                     </CollectionView.ItemsLayout>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid WidthRequest="380"
-                                  HeightRequest="280"
-                                  MinimumWidthRequest="380"
-                                  MinimumHeightRequest="280"
-                                  MaximumWidthRequest="380"
-                                  MaximumHeightRequest="280"
-                                  HorizontalOptions="Fill"
-                                  VerticalOptions="Start">
+                            <Grid HorizontalOptions="Fill"
+                                  VerticalOptions="Fill"
+                                  SizeChanged="Grid_SizeChanged">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnPhotoTapped"
                                                       NumberOfTapsRequired="1"
                                                       CommandParameter="{Binding .}" />
                                 </Grid.GestureRecognizers>
-                                <Frame HeightRequest="280"
-                                   WidthRequest="380"
-                                   MinimumHeightRequest="280"
-                                   MinimumWidthRequest="380"
-                                   MaximumHeightRequest="280"
-                                   MaximumWidthRequest="380"
+                                <Frame x:Name="PhotoFrame"
+                                   Grid.Row="0"
+                                   Grid.Column="0"
+                                   HorizontalOptions="Fill"
+                                   VerticalOptions="Fill"
                                    Padding="10"
                                    Margin="0"
                                    HasShadow="True"
@@ -226,8 +226,10 @@
                                 
                                 <!-- Selectie Indicator (wordt getoond via IsSelected property) -->
                                 <Frame x:Name="SelectionOverlay"
-                                       HeightRequest="280"
-                                       WidthRequest="380"
+                                       Grid.Row="0"
+                                       Grid.Column="0"
+                                       HorizontalOptions="Fill"
+                                       VerticalOptions="Fill"
                                        Padding="0"
                                        Margin="0"
                                        HasShadow="False"

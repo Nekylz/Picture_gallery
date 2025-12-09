@@ -1051,6 +1051,29 @@ public partial class Gallery : ContentPage
     }
 
     /// <summary>
+    /// Handelt SizeChanged event af voor Grid items om aspect ratio te behouden
+    /// </summary>
+    private void Grid_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Grid grid)
+        {
+            // Aspect ratio: 380:280 = 1.357:1 (width:height)
+            const double aspectRatio = 380.0 / 280.0;
+            
+            if (grid.Width > 0 && grid.Height > 0)
+            {
+                double expectedHeight = grid.Width / aspectRatio;
+                
+                // Als de hoogte niet overeenkomt met de verwachte aspect ratio, pas aan
+                if (Math.Abs(grid.Height - expectedHeight) > 1)
+                {
+                    grid.HeightRequest = expectedHeight;
+                }
+            }
+        }
+    }
+    
+    /// <summary>
     /// Valideert of een label tekst alleen toegestane tekens bevat (letters, cijfers, spaties)
     /// Speciale tekens zijn niet toegestaan
     /// </summary>
