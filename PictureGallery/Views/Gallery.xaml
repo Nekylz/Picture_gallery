@@ -161,7 +161,8 @@
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
                             Margin="0,20,0,0"
-                            ItemSizingStrategy="MeasureFirstItem">
+                            HorizontalOptions="Fill"
+                            ItemSizingStrategy="MeasureAllItems">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"
@@ -170,7 +171,9 @@
                     </CollectionView.ItemsLayout>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid>
+                            <Grid WidthRequest="380"
+                                  HeightRequest="280"
+                                  HorizontalOptions="Center">
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnPhotoTapped"
                                                       NumberOfTapsRequired="1"
