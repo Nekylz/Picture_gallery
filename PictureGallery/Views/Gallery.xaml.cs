@@ -365,6 +365,16 @@ public partial class Gallery : ContentPage
             return;
         }
 
+        // Valideer dat het label geen speciale tekens bevat
+        if (!IsValidLabelText(newLabel))
+        {
+            await Application.Current.MainPage.DisplayAlert(
+                "Ongeldige tekens",
+                "Labels mogen alleen letters, cijfers en spaties bevatten. Speciale tekens zijn niet toegestaan.",
+                "OK");
+            return;
+        }
+
         try
         {
             System.Diagnostics.Debug.WriteLine($"Attempting to add label: '{newLabel}' to photo ID: {currentPhoto.Id}");
@@ -1038,6 +1048,27 @@ public partial class Gallery : ContentPage
         {
             System.Diagnostics.Debug.WriteLine($"Error in PhotosCollection_Loaded: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Valideert of een label tekst alleen toegestane tekens bevat (letters, cijfers, spaties)
+    /// Speciale tekens zijn niet toegestaan
+    /// </summary>
+    private bool IsValidLabelText(string labelText)
+    {
+        if (string.IsNullOrWhiteSpace(labelText))
+            return false;
+
+        // Controleer of alle karakters letters, cijfers of spaties zijn
+        foreach (char c in labelText)
+        {
+            if (!char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }
