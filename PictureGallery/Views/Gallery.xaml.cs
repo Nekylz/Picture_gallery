@@ -1014,5 +1014,30 @@ public partial class Gallery : ContentPage
             await Application.Current.MainPage.DisplayAlert("Error", $"Fout bij verwijderen: {ex.Message}", "OK");
         }
     }
+    
+    /// <summary>
+    /// Forceert correcte item sizing voor Windows platform
+    /// </summary>
+    private void PhotosCollection_Loaded(object? sender, EventArgs e)
+    {
+        // Force refresh van de CollectionView op Windows om correcte sizing te krijgen
+        try
+        {
+            if (Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.WinUI)
+            {
+                // Forceer een layout update
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var currentSource = PhotosCollection.ItemsSource;
+                    PhotosCollection.ItemsSource = null;
+                    PhotosCollection.ItemsSource = currentSource;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error in PhotosCollection_Loaded: {ex.Message}");
+        }
+    }
 
 }

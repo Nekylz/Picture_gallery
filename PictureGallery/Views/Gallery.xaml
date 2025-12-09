@@ -162,7 +162,9 @@
             <CollectionView x:Name="PhotosCollection"
                             Margin="0,20,0,0"
                             HorizontalOptions="Fill"
-                            ItemSizingStrategy="MeasureAllItems">
+                            VerticalOptions="Fill"
+                            ItemSizingStrategy="MeasureAllItems"
+                            Loaded="PhotosCollection_Loaded">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"
@@ -173,7 +175,12 @@
                         <DataTemplate>
                             <Grid WidthRequest="380"
                                   HeightRequest="280"
-                                  HorizontalOptions="Center">
+                                  MinimumWidthRequest="380"
+                                  MinimumHeightRequest="280"
+                                  MaximumWidthRequest="380"
+                                  MaximumHeightRequest="280"
+                                  HorizontalOptions="Fill"
+                                  VerticalOptions="Start">
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnPhotoTapped"
                                                       NumberOfTapsRequired="1"
@@ -181,6 +188,10 @@
                                 </Grid.GestureRecognizers>
                                 <Frame HeightRequest="280"
                                    WidthRequest="380"
+                                   MinimumHeightRequest="280"
+                                   MinimumWidthRequest="380"
+                                   MaximumHeightRequest="280"
+                                   MaximumWidthRequest="380"
                                    Padding="10"
                                    Margin="0"
                                    HasShadow="True"
