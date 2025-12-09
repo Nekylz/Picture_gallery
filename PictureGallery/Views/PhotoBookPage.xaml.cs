@@ -49,7 +49,7 @@ public partial class PhotoBookPage : ContentPage
                     System.Diagnostics.Debug.WriteLine($"Error creating photo from {result.FileName}: {photoEx.Message}");
                     await DisplayAlert(
                         "Corrupte foto",
-                        $"De foto '{result.FileName}' kon niet worden geladen. Het bestand is mogelijk beschadigd of geen geldige afbeelding.\n\nFout: {photoEx.Message}",
+                        $"De foto '{result.FileName}' kon niet worden geladen. Het bestand is beschadigd.",
                         "OK");
                     continue;
                 }
