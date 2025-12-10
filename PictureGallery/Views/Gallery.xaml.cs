@@ -1043,21 +1043,6 @@ public partial class Gallery : ContentPage
                 }
             }
 
-            // Als parent MyMainPage is, probeer zijn NavigateToPhotoBookAsync methode
-            if (parentPage is MyMainPage myMainPage)
-            {
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine("Calling MyMainPage.NavigateToPhotoBookAsync");
-                    await myMainPage.NavigateToPhotoBookAsync();
-                    System.Diagnostics.Debug.WriteLine("Navigation successful via MyMainPage method");
-                    return;
-                }
-                catch (Exception mainPageEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"MyMainPage navigation failed: {mainPageEx.Message}");
-                }
-            }
 
             // Fallback: probeer via Application.Current.MainPage
             if (Application.Current?.MainPage != null)
