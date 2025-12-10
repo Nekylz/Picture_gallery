@@ -143,7 +143,7 @@
                             FontSize="24"
                             WidthRequest="44"
                             HeightRequest="44"
-                            BackgroundColor="#EDEDED"
+                           BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="22"
                             IsVisible="False"
@@ -161,7 +161,10 @@
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
                             Margin="0,20,0,0"
-                            ItemSizingStrategy="MeasureFirstItem">
+                            HorizontalOptions="Fill"
+                            VerticalOptions="Fill"
+                            ItemSizingStrategy="MeasureAllItems"
+                            Loaded="PhotosCollection_Loaded">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"
@@ -170,50 +173,63 @@
                     </CollectionView.ItemsLayout>
                     <CollectionView.ItemTemplate>
                         <DataTemplate>
-                            <Grid>
+                            <Grid HorizontalOptions="Fill"
+                                  VerticalOptions="Fill"
+                                  SizeChanged="Grid_SizeChanged">
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="*" />
+                                </Grid.RowDefinitions>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
                                 <Grid.GestureRecognizers>
                                     <TapGestureRecognizer Tapped="OnPhotoTapped"
                                                       NumberOfTapsRequired="1"
                                                       CommandParameter="{Binding .}" />
                                 </Grid.GestureRecognizers>
-                                <Frame HeightRequest="280"
-                                   WidthRequest="380"
-                                   Padding="10"
-                                   Margin="0"
+                                <Frame x:Name="PhotoFrame"
+                                   Grid.Row="0"
+                                   Grid.Column="0"
+                                   HorizontalOptions="Fill"
+                                   VerticalOptions="Fill"
+                               Padding="10"
+                               Margin="0"
                                    HasShadow="True"
                                    CornerRadius="8"
-                                   BackgroundColor="White"
-                                   BorderColor="#E0E0E0">
-                                    <VisualStateManager.VisualStateGroups>
-                                        <VisualStateGroup>
-                                            <VisualState x:Name="Normal">
-                                                <VisualState.Setters>
-                                                    <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                            <VisualState x:Name="PointerOver">
-                                                <VisualState.Setters>
-                                                    <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                            <VisualState x:Name="Pressed">
-                                                <VisualState.Setters>
-                                                    <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
-                                                </VisualState.Setters>
-                                            </VisualState>
-                                        </VisualStateGroup>
-                                    </VisualStateManager.VisualStateGroups>
-                                    <Image Source="{Binding ImageSource}"
-                                       Aspect="AspectFit"
-                                       HorizontalOptions="Fill"
-                                       VerticalOptions="Fill"
+                               BackgroundColor="White"
+                               BorderColor="#E0E0E0">
+                                <VisualStateManager.VisualStateGroups>
+                                    <VisualStateGroup>
+                                        <VisualState x:Name="Normal">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="PointerOver">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                        <VisualState x:Name="Pressed">
+                                            <VisualState.Setters>
+                                                <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
+                                            </VisualState.Setters>
+                                        </VisualState>
+                                    </VisualStateGroup>
+                                </VisualStateManager.VisualStateGroups>
+                                <Image Source="{Binding ImageSource}"
+                                   Aspect="AspectFit"
+                                   HorizontalOptions="Fill"
+                                   VerticalOptions="Fill"
                                        BackgroundColor="White" />
                                 </Frame>
                                 
                                 <!-- Selectie Indicator (wordt getoond via IsSelected property) -->
                                 <Frame x:Name="SelectionOverlay"
-                                       HeightRequest="280"
-                                       WidthRequest="380"
+                                       Grid.Row="0"
+                                       Grid.Column="0"
+                                       HorizontalOptions="Fill"
+                                       VerticalOptions="Fill"
                                        Padding="0"
                                        Margin="0"
                                        HasShadow="False"
@@ -228,7 +244,7 @@
                                            TextColor="White"
                                            HorizontalOptions="Center"
                                            VerticalOptions="Center" />
-                                </Frame>
+                            </Frame>
                             </Grid>
                         </DataTemplate>
                     </CollectionView.ItemTemplate>

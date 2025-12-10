@@ -20,7 +20,7 @@ public partial class Gallery : ContentPage
 
     private PhotoItem? currentPhoto;
     private readonly DatabaseService _databaseService;
-    
+
     // Selection mode properties
     private bool _isSelectionMode = false;
     private HashSet<PhotoItem> _selectedPhotos = new();
@@ -98,7 +98,21 @@ public partial class Gallery : ContentPage
                     if (!IsSupportedImage(result.FileName))
                         continue;
 
-                    var photo = await CreatePhotoItemAsync(result);
+                    PhotoItem? photo = null;
+                    try
+                    {
+                        photo = await CreatePhotoItemAsync(result);
+                    }
+                    catch (Exception photoEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error creating photo from {result.FileName}: {photoEx.Message}");
+                        await Application.Current.MainPage.DisplayAlert(
+                            "Corrupte foto",
+                            $"De foto '{result.FileName}' kon niet worden geladen. Het bestand is beschadigd.",
+                            "OK");
+                        continue;
+                    }
+                    
                     if (photo != null && photo.IsValid)
                     {
                         try
@@ -119,11 +133,37 @@ public partial class Gallery : ContentPage
                         {
                             if (photo.FileExists)
                             {
-                                // ImageSource moet op de main thread worden ingesteld
-                                await MainThread.InvokeOnMainThreadAsync(() =>
+                                try
                                 {
-                                    photo.ImageSource = ImageSource.FromFile(photo.FilePath);
-                                });
+                                    // ImageSource moet op de main thread worden ingesteld
+                                    await MainThread.InvokeOnMainThreadAsync(() =>
+                                    {
+                                        try
+                                        {
+                                            photo.ImageSource = ImageSource.FromFile(photo.FilePath);
+                                        }
+                                        catch (Exception imgEx)
+                                        {
+                                            System.Diagnostics.Debug.WriteLine($"Error creating ImageSource for existing file: {imgEx.Message}");
+                                            throw;
+                                        }
+                                    });
+                                }
+                                catch (Exception imgEx)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"Failed to create ImageSource: {imgEx.Message}");
+                                    await Application.Current.MainPage.DisplayAlert(
+                                        "Corrupte foto",
+                                        $"De foto '{photo.FileName}' kon niet worden geladen. Het bestand is beschadigd.",
+                                        "OK");
+                                    // Verwijder uit database als het daar al in staat
+                                    try
+                                    {
+                                        await _databaseService.DeletePhotoAsync(photo);
+                                    }
+                                    catch { }
+                                    continue;
+                                }
                             }
                             else
                             {
@@ -198,14 +238,29 @@ public partial class Gallery : ContentPage
         var permanentPath = Path.Combine(photosDirectory, uniqueFileName);
 
         // Kopieer bestand naar permanente locatie
-        await using (var pickedStream = await result.OpenReadAsync())
+        try
         {
-            await using (var permanentFile = File.Create(permanentPath))
+            await using (var pickedStream = await result.OpenReadAsync())
             {
-                await pickedStream.CopyToAsync(permanentFile);
-                await permanentFile.FlushAsync(); // Zorg ervoor dat bestand volledig is geschreven
-            } // File stream wordt hier gesloten
-        } // Picked stream wordt hier gesloten
+                await using (var permanentFile = File.Create(permanentPath))
+                {
+                    await pickedStream.CopyToAsync(permanentFile);
+                    await permanentFile.FlushAsync(); // Zorg ervoor dat bestand volledig is geschreven
+                } // File stream wordt hier gesloten
+            } // Picked stream wordt hier gesloten
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error copying file: {ex.Message}");
+            // Probeer het bestand te verwijderen als het is aangemaakt
+            try
+            {
+                if (File.Exists(permanentPath))
+                    File.Delete(permanentPath);
+            }
+            catch { }
+            throw new InvalidOperationException($"Kon bestand niet kopiëren: {ex.Message}", ex);
+        }
 
         // Korte vertraging om ervoor te zorgen dat het bestandssysteem het bestand heeft vrijgegeven
         await Task.Delay(50);
@@ -235,13 +290,34 @@ public partial class Gallery : ContentPage
             try
             {
                 using (var stream = File.OpenRead(permanentPath))
-                using (var bitmap = SKBitmap.Decode(stream))
                 {
-                    if (bitmap != null)
+                    var bitmap = SKBitmap.Decode(stream);
+                    
+                    if (bitmap == null)
                     {
+                        // Bitmap kon niet worden gedecode - waarschijnlijk corrupte afbeelding
+                        retries = 0; // Stop retries
+                        throw new InvalidOperationException("Het bestand kon niet als afbeelding worden gelezen. Het bestand is mogelijk beschadigd of geen geldige afbeelding.");
+                    }
+                    
+                    try
+                    {
+                        // Valideer dat de bitmap geldige afmetingen heeft
+                        if (bitmap.Width <= 0 || bitmap.Height <= 0)
+                        {
+                            bitmap.Dispose();
+                            retries = 0;
+                            throw new InvalidOperationException("De afbeelding heeft geen geldige afmetingen.");
+                        }
+                        
                         width = bitmap.Width;
                         height = bitmap.Height;
                         success = true;
+                    }
+                    finally
+                    {
+                        // Zorg ervoor dat bitmap wordt vrijgegeven
+                        bitmap?.Dispose();
                     }
                 }
             }
@@ -256,15 +332,58 @@ public partial class Gallery : ContentPage
                 }
                 else
                 {
+                    // Verwijder corrupt bestand
+                    try
+                    {
+                        if (File.Exists(permanentPath))
+                            File.Delete(permanentPath);
+                    }
+                    catch { }
+                    
                     System.Diagnostics.Debug.WriteLine($"Error reading image dimensions after retries: {ex.Message}");
-                    return null;
+                    throw new InvalidOperationException($"Kon afbeelding niet lezen na {retries + 3} pogingen: {ex.Message}", ex);
                 }
+            }
+            catch (InvalidOperationException)
+            {
+                // Re-throw invalid operation exceptions (corrupte afbeelding)
+                retries = 0;
+                // Verwijder corrupt bestand
+                try
+                {
+                    if (File.Exists(permanentPath))
+                        File.Delete(permanentPath);
+                }
+                catch { }
+                throw;
             }
             catch (Exception ex)
             {
+                // Andere exceptions (mogelijk corrupte afbeelding)
+                retries = 0;
+                // Verwijder corrupt bestand
+                try
+                {
+                    if (File.Exists(permanentPath))
+                        File.Delete(permanentPath);
+                }
+                catch { }
+                
                 System.Diagnostics.Debug.WriteLine($"Error reading image dimensions: {ex.Message}");
-                return null;
+                throw new InvalidOperationException($"Kon afbeelding niet lezen: {ex.Message}", ex);
             }
+        }
+        
+        // Als we hier zijn zonder success, dan is de afbeelding corrupt
+        if (!success)
+        {
+            try
+            {
+                if (File.Exists(permanentPath))
+                    File.Delete(permanentPath);
+            }
+            catch { }
+            throw new InvalidOperationException("Kon afbeelding niet lezen: ongeldig of beschadigd bestand.");
         }
 
         var fileSizeMB = fileInfo.Length / (1024.0 * 1024.0);
@@ -280,10 +399,46 @@ public partial class Gallery : ContentPage
 
         // Initialiseer ImageSource direct - gebruik FromFile direct
         // Dit moet op de main thread gebeuren voor MAUI
-        await MainThread.InvokeOnMainThreadAsync(() =>
+        try
         {
-            photo.ImageSource = ImageSource.FromFile(permanentPath);
-        });
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                try
+                {
+                    photo.ImageSource = ImageSource.FromFile(permanentPath);
+                }
+                catch (Exception imgEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error creating ImageSource: {imgEx.Message}");
+                    // Verwijder het bestand als ImageSource niet kan worden gemaakt
+                    try
+                    {
+                        if (File.Exists(permanentPath))
+                            File.Delete(permanentPath);
+                    }
+                    catch { }
+                    throw new InvalidOperationException($"Kon afbeelding niet laden voor weergave: {imgEx.Message}", imgEx);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error in MainThread.InvokeOnMainThreadAsync for ImageSource: {ex.Message}");
+            // Bestand is al verwijderd of verwijderen mislukt - throw de exception
+            throw;
+        }
+
+        // Valideer dat ImageSource succesvol is aangemaakt
+        if (photo.ImageSource == null)
+        {
+            try
+            {
+                if (File.Exists(permanentPath))
+                    File.Delete(permanentPath);
+            }
+            catch { }
+            throw new InvalidOperationException("Kon ImageSource niet aanmaken voor de afbeelding.");
+        }
 
         System.Diagnostics.Debug.WriteLine($"Created photo: {photo.FileName}, Path: {photo.FilePath}, ImageSource: {photo.ImageSource != null}, Size: {width}x{height}");
 
@@ -316,8 +471,8 @@ public partial class Gallery : ContentPage
             else
             {
                 // Normale modus: toon fullscreen overlay
-                currentPhoto = tappedPhoto;
-                await ShowPhotoOverlay(tappedPhoto);
+            currentPhoto = tappedPhoto;
+            await ShowPhotoOverlay(tappedPhoto);
             }
         }
     }
@@ -362,6 +517,16 @@ public partial class Gallery : ContentPage
         if (string.IsNullOrEmpty(newLabel))
         {
             await Application.Current.MainPage.DisplayAlert("Leeg label", "Voer een label naam in.", "OK");
+            return;
+        }
+
+        // Valideer dat het label geen speciale tekens bevat
+        if (!IsValidLabelText(newLabel))
+        {
+            await Application.Current.MainPage.DisplayAlert(
+                "Ongeldige tekens",
+                "Labels mogen alleen letters, cijfers en spaties bevatten. Speciale tekens zijn niet toegestaan.",
+                "OK");
             return;
         }
 
@@ -1013,6 +1178,75 @@ public partial class Gallery : ContentPage
             System.Diagnostics.Debug.WriteLine($"Error deleting photos: {ex.Message}");
             await Application.Current.MainPage.DisplayAlert("Error", $"Fout bij verwijderen: {ex.Message}", "OK");
         }
+    }
+    
+    /// <summary>
+    /// Forceert correcte item sizing voor Windows platform
+    /// </summary>
+    private void PhotosCollection_Loaded(object? sender, EventArgs e)
+    {
+        // Force refresh van de CollectionView op Windows om correcte sizing te krijgen
+        try
+        {
+            if (Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.WinUI)
+            {
+                // Forceer een layout update
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    var currentSource = PhotosCollection.ItemsSource;
+                    PhotosCollection.ItemsSource = null;
+                    PhotosCollection.ItemsSource = currentSource;
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error in PhotosCollection_Loaded: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Handelt SizeChanged event af voor Grid items om aspect ratio te behouden
+    /// </summary>
+    private void Grid_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Grid grid)
+        {
+            // Aspect ratio: 380:280 = 1.357:1 (width:height)
+            const double aspectRatio = 380.0 / 280.0;
+            
+            if (grid.Width > 0 && grid.Height > 0)
+            {
+                double expectedHeight = grid.Width / aspectRatio;
+                
+                // Als de hoogte niet overeenkomt met de verwachte aspect ratio, pas aan
+                if (Math.Abs(grid.Height - expectedHeight) > 1)
+                {
+                    grid.HeightRequest = expectedHeight;
+                }
+            }
+        }
+    }
+    
+    /// <summary>
+    /// Valideert of een label tekst alleen toegestane tekens bevat (letters, cijfers, spaties)
+    /// Speciale tekens zijn niet toegestaan
+    /// </summary>
+    private bool IsValidLabelText(string labelText)
+    {
+        if (string.IsNullOrWhiteSpace(labelText))
+            return false;
+
+        // Controleer of alle karakters letters, cijfers of spaties zijn
+        foreach (char c in labelText)
+        {
+            if (!char.IsLetterOrDigit(c) && !char.IsWhiteSpace(c))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
 }
