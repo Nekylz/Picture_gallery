@@ -9,24 +9,27 @@ public partial class MyMainPage : ContentPage
         InitializeComponent();
 
         // Standaard Gallery tonen
-        Content = new ContentView { Content = new Views.Gallery().Content };
+        SubPage.Content = new Views.Gallery().Content;
     }
 
     // Navigatie naar Page1
     void OnPage1Clicked(object sender, EventArgs e)
     {
-        Content = new ContentView { Content = new Views.NewPage1().Content };
+        SubPage.Content = new Views.NewPage1().Content;
     }
 
     // Navigatie naar Gallery
     void OnPage2Clicked(object sender, EventArgs e)
     {
-        Content = new ContentView { Content = new Views.Gallery().Content };
+        SubPage.Content = new Views.Gallery().Content;
     }
 
-    // Navigatie naar Fotoboek (PhotoBookPage)
-    async void OpenPhotoBook_Clicked(object sender, EventArgs e)
+    // Navigatie naar PhotoBookPage (kan worden aangeroepen vanuit Gallery)
+    public async Task NavigateToPhotoBookAsync()
     {
-        await Navigation.PushAsync(new PhotoBookPage());
+        if (Navigation != null)
+        {
+            await Navigation.PushAsync(new PhotoBookPage());
+        }
     }
 }
