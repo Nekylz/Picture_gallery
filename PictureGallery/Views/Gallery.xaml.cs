@@ -1320,10 +1320,92 @@ public partial class Gallery : ContentPage
     }
     
     /// <summary>
-    /// Forceert correcte item sizing voor Windows platform
+    /// Handelt SizeChanged event af voor header om responsieve layout aan te passen
+    /// </summary>
+    private void HeaderGrid_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Grid headerGrid && GalleryTitle != null)
+        {
+            double width = headerGrid.Width;
+            
+            // Op kleinere schermen: verklein font size en pas button spacing aan
+            if (width > 0)
+            {
+                if (width < 600)
+                {
+                    // Klein scherm: verklein title en buttons
+                    GalleryTitle.FontSize = 24;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 12;
+                    if (SortDateButton != null) SortDateButton.FontSize = 12;
+                    if (SelectButton != null) SelectButton.FontSize = 12;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 6;
+                }
+                else if (width < 900)
+                {
+                    // Medium scherm
+                    GalleryTitle.FontSize = 28;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 13;
+                    if (SortDateButton != null) SortDateButton.FontSize = 13;
+                    if (SelectButton != null) SelectButton.FontSize = 13;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 8;
+                }
+                else
+                {
+                    // Groot scherm: normale grootte
+                    GalleryTitle.FontSize = 32;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 14;
+                    if (SortDateButton != null) SortDateButton.FontSize = 14;
+                    if (SelectButton != null) SelectButton.FontSize = 14;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 10;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handelt SizeChanged event af voor PhotosCollection om responsieve Span aan te passen
+    /// </summary>
+    private void PhotosCollection_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is CollectionView collectionView && collectionView.ItemsLayout is GridItemsLayout gridLayout)
+        {
+            double width = collectionView.Width;
+            
+            // Bepaal aantal kolommen op basis van schermbreedte
+            // Minimaal 150px per thumbnail, met spacing
+            int span = 4; // default
+            
+            if (width > 0)
+            {
+                // Account voor margins en spacing (16px spacing + padding)
+                double availableWidth = width - 40; // 20px margin each side
+                double minThumbnailWidth = 150;
+                double spacingPerItem = 16;
+                
+                // Bereken aantal kolommen: (availableWidth + spacing) / (minThumbnailWidth + spacing)
+                int calculatedSpan = (int)Math.Floor((availableWidth + spacingPerItem) / (minThumbnailWidth + spacingPerItem));
+                
+                // Beperk tot redelijke grenzen - maximaal 4 kolommen per rij
+                span = Math.Max(2, Math.Min(4, calculatedSpan));
+                
+                // Update Span alleen als het anders is
+                if (gridLayout.Span != span)
+                {
+                    gridLayout.Span = span;
+                    System.Diagnostics.Debug.WriteLine($"Updated GridItemsLayout Span to {span} for width {width}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Forceert correcte item sizing voor Windows platform en initialiseert responsieve Span
     /// </summary>
     private void PhotosCollection_Loaded(object? sender, EventArgs e)
     {
+        // Initialiseer responsieve Span
+        PhotosCollection_SizeChanged(sender, e);
+        
         // Force refresh van de CollectionView op Windows om correcte sizing te krijgen
         try
         {

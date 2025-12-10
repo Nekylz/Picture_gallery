@@ -111,8 +111,9 @@
                                  Margin="0,60,0,0">
 
                 <!-- HEADER -->
-                <Grid ColumnDefinitions="Auto,*">
-                    <Label 
+                <Grid ColumnDefinitions="Auto,*" 
+                      SizeChanged="HeaderGrid_SizeChanged">
+                    <Label x:Name="GalleryTitle"
                     Text="Photo Gallery"
                     FontSize="32"
                     TextColor="Black"
@@ -120,8 +121,9 @@
                     HorizontalOptions="Start"
                     VerticalOptions="Center" />
 
-                    <HorizontalStackLayout Grid.Column="1"
-                                       Spacing="10"
+                    <HorizontalStackLayout x:Name="HeaderButtonsLayout"
+                                       Grid.Column="1"
+                                       Spacing="8"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
                         <Button x:Name="FilterLabelButton"
@@ -129,27 +131,34 @@
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
                             Clicked="FilterLabelButton_Clicked" />
                         <Button x:Name="SortDateButton"
                             Text="Newest ↑"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
                             Clicked="SortDateButton_Clicked" />
                         <Button x:Name="SelectButton"
                             Text="Select"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
                             Clicked="SelectButton_Clicked" />
                         <Button x:Name="SelectionActionsButton"
                             Text="⋯"
-                            FontSize="24"
-                            WidthRequest="44"
-                            HeightRequest="44"
+                            FontSize="20"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
                            BackgroundColor="#EDEDED"
                             TextColor="#333333"
-                            CornerRadius="22"
+                            CornerRadius="20"
                             IsVisible="False"
                             Clicked="SelectionActionsButton_Clicked" />
                     </HorizontalStackLayout>
@@ -202,7 +211,8 @@
                             VerticalOptions="FillAndExpand"
                             ItemSizingStrategy="MeasureAllItems"
                             IsVisible="False"
-                            Loaded="PhotosCollection_Loaded">
+                            Loaded="PhotosCollection_Loaded"
+                            SizeChanged="PhotosCollection_SizeChanged">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"
