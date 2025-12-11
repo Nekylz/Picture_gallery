@@ -987,7 +987,7 @@ public partial class Gallery : ContentPage
         UploadMedia(sender ?? this, EventArgs.Empty);
     }
     /// <summary>
-    /// Navigeert naar de PhotoBook pagina wanneer op de Photo Book knop wordt geklikt
+    /// Navigeert naar de PhotoBook Management pagina wanneer op de Photo Book knop wordt geklikt
     /// Probeert meerdere navigatiemethoden omdat Gallery als ContentView wordt gebruikt
     /// en mogelijk geen directe Navigation heeft
     /// </summary>
@@ -1003,7 +1003,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via Shell.Current.Navigation");
-                    await Shell.Current.Navigation.PushAsync(new PhotoBookPage());
+                    await Shell.Current.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via Shell.Current");
                     return;
                 }
@@ -1033,7 +1033,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via parent ContentPage");
-                    await parentPage.Navigation.PushAsync(new PhotoBookPage());
+                    await parentPage.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via parent ContentPage");
                     return;
                 }
@@ -1050,7 +1050,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via Application.Current.MainPage");
-                    await Application.Current.MainPage.Navigation.PushAsync(new PhotoBookPage());
+                    await Application.Current.MainPage.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via Application.Current.MainPage");
                     return;
                 }
@@ -1068,7 +1068,7 @@ public partial class Gallery : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookPage: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookManagementPage: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             if (Application.Current?.MainPage != null)
             {
