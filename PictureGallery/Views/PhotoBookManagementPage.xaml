@@ -341,12 +341,12 @@
                            BackgroundColor="White"
                            BorderColor="#E0E0E0">
                         <VerticalStackLayout Spacing="12" HorizontalOptions="Center" VerticalOptions="Center">
-                            <Label Text="Nog geen fotoboeken"
+                            <Label Text="No photo books yet"
                                    FontSize="20"
                                    FontAttributes="Bold"
                                    TextColor="#333333"
                                    HorizontalTextAlignment="Center" />
-                            <Label Text="Maak je eerste fotoboek om te beginnen."
+                            <Label Text="Create your first photo book to get started."
                                    FontSize="14"
                                    TextColor="#555555"
                                    HorizontalTextAlignment="Center" />

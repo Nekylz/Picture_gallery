@@ -48,7 +48,7 @@ public partial class PhotoBookManagementPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading PhotoBooks: {ex.Message}");
-            await DisplayAlert("Fout", "Kon fotoboeken niet laden.", "OK");
+            await DisplayAlert("Error", "Could not load photo books.", "OK");
         }
     }
 
@@ -127,7 +127,7 @@ public partial class PhotoBookManagementPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error creating PhotoBook: {ex.Message}");
-            await DisplayAlert("Fout", "Kon fotoboek niet aanmaken.", "OK");
+            await DisplayAlert("Error", "Could not create photo book.", "OK");
         }
     }
 
@@ -224,7 +224,7 @@ public partial class PhotoBookManagementPage : ContentPage
                 catch (Exception ex)
                 {
                     System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookPage: {ex.Message}");
-                    await DisplayAlert("Fout", "Kon fotoboek niet openen.", "OK");
+                    await DisplayAlert("Error", "Could not open photo book.", "OK");
                 }
             }
         }
@@ -239,10 +239,10 @@ public partial class PhotoBookManagementPage : ContentPage
             return;
 
         var confirmed = await DisplayAlert(
-            "Fotoboeken verwijderen",
-            $"Weet je zeker dat je {_selectedPhotoBooks.Count} fotoboek(en) wilt verwijderen?",
-            "Verwijderen",
-            "Annuleren");
+            "Delete Photo Books",
+            $"Are you sure you want to delete {_selectedPhotoBooks.Count} photo book(s)?",
+            "Delete",
+            "Cancel");
 
         if (!confirmed)
             return;
@@ -265,7 +265,7 @@ public partial class PhotoBookManagementPage : ContentPage
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error deleting PhotoBooks: {ex.Message}");
-            await DisplayAlert("Fout", "Kon fotoboeken niet verwijderen.", "OK");
+            await DisplayAlert("Error", "Could not delete photo books.", "OK");
         }
     }
 
