@@ -1,14 +1,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="PictureGallery.Views.PhotoBookPage"
-             Title="Fotoboek">
+             Title="Photobook">
     <Grid x:Name="MainGrid" ColumnDefinitions="220,*" BackgroundColor="#F3E1DD">
         <VerticalStackLayout Padding="20" Spacing="10">
 
-            <!-- Voeg foto toe -->
-            <Button Text="Voeg foto toe" Clicked="AddPhoto_Clicked" />
+            <!-- Add photo -->
+            <Button Text="Add photo" Command="{Binding AddPhotoCommand}" />
 
-            <!-- Pagina overzicht -->
+            <!-- Page overview -->
             <CollectionView x:Name="PagesCollectionView"
                         ItemsSource="{Binding PhotoBook.Pages}">
                 <CollectionView.ItemTemplate>
@@ -28,8 +28,8 @@
                                     </CollectionView.ItemTemplate>
                                 </CollectionView>
 
-                                <!-- Titel/tekst per pagina -->
-                                <Entry Text="{Binding Title}" Placeholder="Voeg titel/tekst toe"/>
+                                <!-- Title/text per page -->
+                                <Entry Text="{Binding Title}" Placeholder="Add title/text"/>
 
                             </StackLayout>
                         </Frame>

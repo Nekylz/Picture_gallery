@@ -58,16 +58,16 @@
                                 Padding="20,12"
                                 FontSize="16"
                                 HorizontalOptions="End"
-                                Clicked="NewPhotoBookButton_Clicked" />
+                                Command="{Binding NewPhotoBookCommand}" />
                         <Button x:Name="SelectButton"
-                                Text="Select"
+                                Text="{Binding SelectButtonText}"
                                 BackgroundColor="#EDEDED"
                                 TextColor="#333333"
                                 CornerRadius="8"
                                 Padding="20,12"
                                 FontSize="16"
                                 HorizontalOptions="End"
-                                Clicked="SelectButton_Clicked" />
+                                Command="{Binding SelectButtonCommand}" />
                         <Button x:Name="DeleteButton"
                                 Text="Delete"
                                 BackgroundColor="#FF3B30"
@@ -76,8 +76,8 @@
                                 Padding="20,12"
                                 FontSize="16"
                                 HorizontalOptions="End"
-                                IsVisible="False"
-                                Clicked="DeleteButton_Clicked" />
+                                IsVisible="{Binding DeleteButtonVisible}"
+                                Command="{Binding DeleteButtonCommand}" />
                     </VerticalStackLayout>
                 </Grid>
 
@@ -111,7 +111,7 @@
                                                  Grid.Column="1"
                                                  VerticalOptions="Center">
                                 <Label x:Name="TotalPhotoBooksLabel"
-                                       Text="0"
+                                       Text="{Binding TotalPhotoBooks}"
                                        FontSize="20"
                                        FontAttributes="Bold"
                                        TextColor="Black" />
@@ -158,7 +158,7 @@
                                                  Grid.Column="1"
                                                  VerticalOptions="Center">
                                 <Label x:Name="TotalPhotosLabel"
-                                       Text="0"
+                                       Text="{Binding TotalPhotos}"
                                        FontSize="20"
                                        FontAttributes="Bold"
                                        TextColor="Black" />
@@ -174,6 +174,7 @@
                 <CollectionView x:Name="PhotoBooksCollection"
                                 ItemsSource="{Binding PhotoBooks}"
                                 Margin="0,10,0,0"
+                                IsVisible="{Binding HasPhotoBooks}"
                                 SizeChanged="PhotoBooksCollection_SizeChanged">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
@@ -185,7 +186,7 @@
                         <DataTemplate>
                             <Grid>
                                 <Grid.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnPhotoBookTapped"
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PhotoBookTappedCommand}"
                                                           CommandParameter="{Binding .}" />
                                 </Grid.GestureRecognizers>
                                 <Frame x:Name="PhotoBookFrame"
@@ -333,7 +334,7 @@
                 <Grid x:Name="EmptyStateView"
                       VerticalOptions="CenterAndExpand"
                       HorizontalOptions="Center"
-                      IsVisible="False"
+                      IsVisible="{Binding HasPhotoBooks, Converter={StaticResource InverseBoolConverter}}"
                       Margin="0,40,0,0">
                     <Frame Padding="30"
                            HasShadow="True"
@@ -355,7 +356,7 @@
                                     BackgroundColor="#007AFF"
                                     TextColor="White"
                                     CornerRadius="8"
-                                    Clicked="NewPhotoBookButton_Clicked" />
+                                    Command="{Binding NewPhotoBookCommand}" />
                         </VerticalStackLayout>
                     </Frame>
                 </Grid>
@@ -365,7 +366,7 @@
         
         <!-- Create PhotoBook Modal -->
         <views:CreatePhotoBookModal x:Name="CreatePhotoBookModal"
-                                    IsVisible="False"
+                                    IsVisible="{Binding IsCreatePhotoBookModalVisible}"
                                     HorizontalOptions="Fill"
                                     VerticalOptions="Fill" />
     </Grid>

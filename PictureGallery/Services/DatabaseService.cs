@@ -1,3 +1,4 @@
+using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 using PictureGallery.Models;
 using SQLite;
@@ -222,11 +223,28 @@ public class DatabaseService
     /// </summary>
     public async Task LoadLabelsForPhotoAsync(PhotoItem photo)
     {
-        photo.Labels.Clear();
-        var labels = await GetLabelsForPhotoAsync(photo.Id);
-        foreach (var label in labels)
+        try
         {
-            photo.Labels.Add(label.LabelText);
+            var labels = await GetLabelsForPhotoAsync(photo.Id);
+            
+            // Clear en add op main thread voor thread safety met ObservableCollection
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                photo.Labels.Clear();
+                foreach (var label in labels)
+                {
+                    photo.Labels.Add(label.LabelText);
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading labels for photo {photo.Id}: {ex.Message}");
+            // Zet lege collectie bij error
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                photo.Labels.Clear();
+            });
         }
     }
 
