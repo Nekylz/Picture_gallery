@@ -54,6 +54,7 @@ public class DatabaseService
         // Maak tabellen aan als ze nog niet bestaan
         await _database.CreateTableAsync<PhotoItem>();
         await _database.CreateTableAsync<PhotoLabel>();
+        await _database.CreateTableAsync<PhotoBook>();
         
         System.Diagnostics.Debug.WriteLine($"Database initialized at: {_databasePath}");
     }
@@ -341,6 +342,80 @@ public class DatabaseService
         var db = await GetDatabaseAsync();
         await db.DeleteAllAsync<PhotoLabel>();
         await db.DeleteAllAsync<PhotoItem>();
+        await db.DeleteAllAsync<PhotoBook>();
+    }
+
+    // ========== PHOTOBOOK OPERATIONS ==========
+
+    /// <summary>
+    /// Voegt een nieuwe PhotoBook toe aan de database
+    /// </summary>
+    public async Task<int> AddPhotoBookAsync(PhotoBook photoBook)
+    {
+        var db = await GetDatabaseAsync();
+        photoBook.CreatedDate = DateTime.Now;
+        photoBook.UpdatedDate = DateTime.Now;
+        var result = await db.InsertAsync(photoBook);
+        System.Diagnostics.Debug.WriteLine($"PhotoBook saved to database: Id={photoBook.Id}, Name={photoBook.Name}");
+        return photoBook.Id;
+    }
+
+    /// <summary>
+    /// Haalt alle PhotoBooks op uit de database
+    /// </summary>
+    public async Task<List<PhotoBook>> GetAllPhotoBooksAsync()
+    {
+        var db = await GetDatabaseAsync();
+        var photoBooks = await db.Table<PhotoBook>().OrderByDescending(pb => pb.UpdatedDate).ToListAsync();
+        
+        System.Diagnostics.Debug.WriteLine($"Loaded {photoBooks.Count} PhotoBooks from database");
+        return photoBooks;
+    }
+
+    /// <summary>
+    /// Haalt een PhotoBook op basis van ID op
+    /// </summary>
+    public async Task<PhotoBook?> GetPhotoBookByIdAsync(int id)
+    {
+        var db = await GetDatabaseAsync();
+        return await db.Table<PhotoBook>().Where(pb => pb.Id == id).FirstOrDefaultAsync();
+    }
+
+    /// <summary>
+    /// Werkt een bestaande PhotoBook bij
+    /// </summary>
+    public async Task<int> UpdatePhotoBookAsync(PhotoBook photoBook)
+    {
+        var db = await GetDatabaseAsync();
+        photoBook.UpdatedDate = DateTime.Now;
+        return await db.UpdateAsync(photoBook);
+    }
+
+    /// <summary>
+    /// Verwijdert een PhotoBook uit de database
+    /// </summary>
+    public async Task<int> DeletePhotoBookAsync(PhotoBook photoBook)
+    {
+        var db = await GetDatabaseAsync();
+        return await db.DeleteAsync(photoBook);
+    }
+
+    /// <summary>
+    /// Verwijdert een PhotoBook op basis van ID
+    /// </summary>
+    public async Task<int> DeletePhotoBookByIdAsync(int id)
+    {
+        var db = await GetDatabaseAsync();
+        return await db.Table<PhotoBook>().DeleteAsync(pb => pb.Id == id);
+    }
+
+    /// <summary>
+    /// Haalt het totaal aantal PhotoBooks op
+    /// </summary>
+    public async Task<int> GetPhotoBookCountAsync()
+    {
+        var db = await GetDatabaseAsync();
+        return await db.Table<PhotoBook>().CountAsync();
     }
 }
 

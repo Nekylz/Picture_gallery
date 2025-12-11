@@ -1,4 +1,5 @@
 ﻿using PictureGallery.Models;
+using PictureGallery.Services;
 
 namespace PictureGallery.Views;
 public partial class PhotoBookPage : ContentPage
@@ -6,15 +7,58 @@ public partial class PhotoBookPage : ContentPage
     public PhotoBook PhotoBook { get; set; } = new();
     private static readonly int MaxPhotosPerPage = 4;
     private static readonly int MaxPages = 2;
+    private readonly DatabaseService _databaseService;
+    private readonly int? _photoBookId;
 
-    public PhotoBookPage()
+    public PhotoBookPage() : this(null)
+    {
+    }
+
+    public PhotoBookPage(int? photoBookId)
     {
         InitializeComponent();
         BindingContext = this;
+        _databaseService = new DatabaseService();
+        _photoBookId = photoBookId;
+        
+        LoadPhotoBookAsync();
+    }
 
-        // Initialize pages
-        for (int i = 0; i < MaxPages; i++)
-            PhotoBook.Pages.Add(new PhotoBookPageModel());
+    /// <summary>
+    /// Laadt PhotoBook uit database als ID beschikbaar is, anders maak nieuwe aan
+    /// </summary>
+    private async Task LoadPhotoBookAsync()
+    {
+        if (_photoBookId.HasValue)
+        {
+            try
+            {
+                var loadedPhotoBook = await _databaseService.GetPhotoBookByIdAsync(_photoBookId.Value);
+                if (loadedPhotoBook != null)
+                {
+                    PhotoBook = loadedPhotoBook;
+                    
+                    // Initialiseer pages als ze leeg zijn
+                    if (PhotoBook.Pages.Count == 0)
+                    {
+                        for (int i = 0; i < MaxPages; i++)
+                            PhotoBook.Pages.Add(new PhotoBookPageModel());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error loading PhotoBook: {ex.Message}");
+                await DisplayAlert("Fout", "Kon fotoboek niet laden.", "OK");
+            }
+        }
+        else
+        {
+            // Geen ID - maak nieuwe PhotoBook aan
+            // Initialize pages
+            for (int i = 0; i < MaxPages; i++)
+                PhotoBook.Pages.Add(new PhotoBookPageModel());
+        }
     }
 
     /// <summary>

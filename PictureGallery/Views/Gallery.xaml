@@ -111,8 +111,9 @@
                                  Margin="0,60,0,0">
 
                 <!-- HEADER -->
-                <Grid ColumnDefinitions="Auto,*">
-                    <Label 
+                <Grid ColumnDefinitions="Auto,*" 
+                      SizeChanged="HeaderGrid_SizeChanged">
+                    <Label x:Name="GalleryTitle"
                     Text="Photo Gallery"
                     FontSize="32"
                     TextColor="Black"
@@ -120,32 +121,44 @@
                     HorizontalOptions="Start"
                     VerticalOptions="Center" />
 
-                    <HorizontalStackLayout Grid.Column="1"
-                                       Spacing="10"
+                    <HorizontalStackLayout x:Name="HeaderButtonsLayout"
+                                       Grid.Column="1"
+                                       Spacing="8"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
-                        <Button Text="Filter: Label"
+                        <Button x:Name="FilterLabelButton"
+                            Text="Filter: Label"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
-                            CornerRadius="12" />
-                        <Button Text="Newest ↑"
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Clicked="FilterLabelButton_Clicked" />
+                        <Button x:Name="SortDateButton"
+                            Text="Newest ↑"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
-                            CornerRadius="12" />
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Clicked="SortDateButton_Clicked" />
                         <Button x:Name="SelectButton"
                             Text="Select"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
                             Clicked="SelectButton_Clicked" />
                         <Button x:Name="SelectionActionsButton"
                             Text="⋯"
-                            FontSize="24"
-                            WidthRequest="44"
-                            HeightRequest="44"
+                            FontSize="20"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
                            BackgroundColor="#EDEDED"
                             TextColor="#333333"
-                            CornerRadius="22"
+                            CornerRadius="20"
                             IsVisible="False"
                             Clicked="SelectionActionsButton_Clicked" />
                     </HorizontalStackLayout>
@@ -158,13 +171,48 @@
                    Margin="0,5,0,0"
                    IsVisible="False" />
 
+            <!-- EMPTY STATE VIEW -->
+            <Grid x:Name="EmptyStateView"
+                  Margin="0,20,0,0"
+                  HorizontalOptions="Fill"
+                  VerticalOptions="FillAndExpand"
+                  IsVisible="True">
+                <Grid Padding="20">
+                    <Frame Padding="20"
+                           HasShadow="True"
+                           CornerRadius="12"
+                           BackgroundColor="White"
+                           BorderColor="#E0E0E0">
+                        <VerticalStackLayout Spacing="10" HorizontalOptions="Center" VerticalOptions="Center">
+                            <Label Text="Nog geen foto's"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#333333"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Upload je eerste foto om de gallery te vullen."
+                                   FontSize="14"
+                                   TextColor="#555555"
+                                   HorizontalTextAlignment="Center" />
+                            <Button Text="Import Photo"
+                                    Padding="16,10"
+                                    BackgroundColor="#EDEDED"
+                                    TextColor="#333333"
+                                    CornerRadius="12"
+                                    Clicked="UploadMedia" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+            </Grid>
+
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
                             Margin="0,20,0,0"
                             HorizontalOptions="Fill"
-                            VerticalOptions="Fill"
+                            VerticalOptions="FillAndExpand"
                             ItemSizingStrategy="MeasureAllItems"
-                            Loaded="PhotosCollection_Loaded">
+                            IsVisible="False"
+                            Loaded="PhotosCollection_Loaded"
+                            SizeChanged="PhotosCollection_SizeChanged">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"

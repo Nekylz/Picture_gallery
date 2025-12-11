@@ -24,6 +24,11 @@ public partial class Gallery : ContentPage
     // Selection mode properties
     private bool _isSelectionMode = false;
     private HashSet<PhotoItem> _selectedPhotos = new();
+    
+    // Filter and sort properties
+    private string? _selectedLabelFilter = null; // null = alle labels
+    private bool _sortNewestFirst = true; // true = newest first, false = oldest first
+    private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
 
     public Gallery()
     {
@@ -34,8 +39,41 @@ public partial class Gallery : ContentPage
         // Stel expliciet ItemsSource in om ervoor te zorgen dat de binding werkt
         PhotosCollection.ItemsSource = Photos;
         
+        // Zet initial state - toon EmptyStateView als er nog geen foto's zijn
+        RefreshPhotosView();
+        
         // Laad foto's direct omdat OnAppearing mogelijk niet wordt aangeroepen wanneer Gallery als ContentView wordt gebruikt
         _ = LoadPhotosFromDatabaseAsync();
+    }
+
+    /// <summary>
+    /// Forceert een refresh van de CollectionView zodat EmptyView correct verschijnt
+    /// en de foto-telling zichtbaar/onzichtbaar wordt gezet.
+    /// </summary>
+    private void RefreshPhotosView()
+    {
+        MainThread.BeginInvokeOnMainThread(() =>
+        {
+            bool hasPhotos = Photos.Count > 0;
+            PhotoCountLabel.IsVisible = hasPhotos;
+            
+            // Toon/verberg EmptyStateView en PhotosCollection op basis van aantal foto's
+            if (EmptyStateView != null)
+            {
+                EmptyStateView.IsVisible = !hasPhotos;
+            }
+            if (PhotosCollection != null)
+            {
+                PhotosCollection.IsVisible = hasPhotos;
+                if (hasPhotos)
+                {
+                    // Refresh ItemsSource alleen als er foto's zijn
+                    var current = Photos;
+                    PhotosCollection.ItemsSource = null;
+                    PhotosCollection.ItemsSource = current;
+                }
+            }
+        });
     }
 
     protected override async void OnAppearing()
@@ -60,16 +98,15 @@ public partial class Gallery : ContentPage
             // UI updates moeten op de main thread gebeuren
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                Photos.Clear();
-                foreach (var photo in photos)
-                {
-                    Photos.Add(photo);
-                }
-
-                PhotoCountLabel.IsVisible = Photos.Count > 0;
-                PhotosCollection.ItemsSource = Photos;
+                _allPhotos = photos;
                 
-                System.Diagnostics.Debug.WriteLine($"Added {Photos.Count} photos to UI collection");
+                // Update available labels voor filter dropdown
+                UpdateAvailableLabels();
+                
+                // Pas filters en sorting toe
+                ApplyFiltersAndSort();
+                
+                System.Diagnostics.Debug.WriteLine($"Added {Photos.Count} photos to UI collection (filtered from {_allPhotos.Count})");
             });
         }
         catch (Exception ex)
@@ -188,18 +225,20 @@ public partial class Gallery : ContentPage
                 // Voeg toe aan collectie en forceer UI refresh
                 if (addedPhotos.Any())
                 {
-                    // Voeg foto's toe aan collectie (nieuwste eerst) - doe dit op de main thread
+                    // Voeg foto's toe aan collectie - doe dit op de main thread
                     await MainThread.InvokeOnMainThreadAsync(() =>
                     {
+                        // Voeg toe aan _allPhotos
                         foreach (var photo in addedPhotos)
                         {
-                            Photos.Insert(0, photo); // Insert aan het begin voor nieuwste eerst
+                            _allPhotos.Insert(0, photo); // Insert aan het begin voor nieuwste eerst
                         }
                         
-                        PhotoCountLabel.IsVisible = Photos.Count > 0;
+                        // Update available labels
+                        UpdateAvailableLabels();
                         
-                        // Stel expliciet ItemsSource in om ervoor te zorgen dat de UI wordt bijgewerkt
-                        PhotosCollection.ItemsSource = Photos;
+                        // Pas filters en sorting toe
+                        ApplyFiltersAndSort();
                     });
 
                     // Debug: Check if photos are actually in collection
@@ -554,6 +593,9 @@ public partial class Gallery : ContentPage
             // Herlaad labels uit database om consistentie te garanderen
             await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
             
+            // Update available labels voor filter dropdown
+            UpdateAvailableLabels();
+            
             LabelEntry.Text = string.Empty;
             DisplayLabels(currentPhoto);
         }
@@ -769,6 +811,9 @@ public partial class Gallery : ContentPage
             // Reload labels from database to ensure consistency
             await _databaseService.LoadLabelsForPhotoAsync(currentPhoto);
             
+            // Update available labels voor filter dropdown
+            UpdateAvailableLabels();
+            
             DisplayLabels(currentPhoto);
         }
         catch (Exception ex)
@@ -942,7 +987,7 @@ public partial class Gallery : ContentPage
         UploadMedia(sender ?? this, EventArgs.Empty);
     }
     /// <summary>
-    /// Navigeert naar de PhotoBook pagina wanneer op de Photo Book knop wordt geklikt
+    /// Navigeert naar de PhotoBook Management pagina wanneer op de Photo Book knop wordt geklikt
     /// Probeert meerdere navigatiemethoden omdat Gallery als ContentView wordt gebruikt
     /// en mogelijk geen directe Navigation heeft
     /// </summary>
@@ -958,7 +1003,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via Shell.Current.Navigation");
-                    await Shell.Current.Navigation.PushAsync(new PhotoBookPage());
+                    await Shell.Current.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via Shell.Current");
                     return;
                 }
@@ -988,7 +1033,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via parent ContentPage");
-                    await parentPage.Navigation.PushAsync(new PhotoBookPage());
+                    await parentPage.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via parent ContentPage");
                     return;
                 }
@@ -998,21 +1043,6 @@ public partial class Gallery : ContentPage
                 }
             }
 
-            // Als parent MyMainPage is, probeer zijn NavigateToPhotoBookAsync methode
-            if (parentPage is MyMainPage myMainPage)
-            {
-                try
-                {
-                    System.Diagnostics.Debug.WriteLine("Calling MyMainPage.NavigateToPhotoBookAsync");
-                    await myMainPage.NavigateToPhotoBookAsync();
-                    System.Diagnostics.Debug.WriteLine("Navigation successful via MyMainPage method");
-                    return;
-                }
-                catch (Exception mainPageEx)
-                {
-                    System.Diagnostics.Debug.WriteLine($"MyMainPage navigation failed: {mainPageEx.Message}");
-                }
-            }
 
             // Fallback: probeer via Application.Current.MainPage
             if (Application.Current?.MainPage != null)
@@ -1020,7 +1050,7 @@ public partial class Gallery : ContentPage
                 try
                 {
                     System.Diagnostics.Debug.WriteLine("Attempting navigation via Application.Current.MainPage");
-                    await Application.Current.MainPage.Navigation.PushAsync(new PhotoBookPage());
+                    await Application.Current.MainPage.Navigation.PushAsync(new PhotoBookManagementPage());
                     System.Diagnostics.Debug.WriteLine("Navigation successful via Application.Current.MainPage");
                     return;
                 }
@@ -1038,7 +1068,7 @@ public partial class Gallery : ContentPage
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookPage: {ex.Message}");
+            System.Diagnostics.Debug.WriteLine($"Error navigating to PhotoBookManagementPage: {ex.Message}");
             System.Diagnostics.Debug.WriteLine($"Stack trace: {ex.StackTrace}");
             if (Application.Current?.MainPage != null)
             {
@@ -1151,9 +1181,10 @@ public partial class Gallery : ContentPage
                 // Verwijder uit database
                 await _databaseService.DeletePhotoAsync(photo);
                 
-                // Verwijder uit UI collectie
+                // Verwijder uit UI collectie en _allPhotos
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
+                    _allPhotos.Remove(photo);
                     Photos.Remove(photo);
                 });
             }
@@ -1164,7 +1195,13 @@ public partial class Gallery : ContentPage
                 "OK");
                 
             _selectedPhotos.Clear();
-            PhotoCountLabel.IsVisible = Photos.Count > 0;
+            
+            // Update available labels en pas filters opnieuw toe
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                UpdateAvailableLabels();
+                ApplyFiltersAndSort();
+            });
             
             // Schakel selectiemodus uit na verwijderen
             _isSelectionMode = false;
@@ -1181,10 +1218,194 @@ public partial class Gallery : ContentPage
     }
     
     /// <summary>
-    /// Forceert correcte item sizing voor Windows platform
+    /// Update de lijst met beschikbare labels voor filtering
+    /// </summary>
+    private void UpdateAvailableLabels()
+    {
+        AvailableLabels.Clear();
+        var labels = _allPhotos
+            .SelectMany(p => p.Labels)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(l => l)
+            .ToList();
+        
+        foreach (var label in labels)
+        {
+            AvailableLabels.Add(label);
+        }
+    }
+    
+    /// <summary>
+    /// Past filters en sorting toe op de foto's
+    /// </summary>
+    private void ApplyFiltersAndSort()
+    {
+        var filteredPhotos = _allPhotos.AsEnumerable();
+        
+        // Filter op label
+        if (!string.IsNullOrEmpty(_selectedLabelFilter))
+        {
+            filteredPhotos = filteredPhotos.Where(p => 
+                p.Labels.Any(l => string.Equals(l, _selectedLabelFilter, StringComparison.OrdinalIgnoreCase)));
+        }
+        
+        // Sort op datum
+        if (_sortNewestFirst)
+        {
+            filteredPhotos = filteredPhotos.OrderByDescending(p => p.CreatedDate);
+        }
+        else
+        {
+            filteredPhotos = filteredPhotos.OrderBy(p => p.CreatedDate);
+        }
+        
+        // Update Photos collectie
+        Photos.Clear();
+        foreach (var photo in filteredPhotos)
+        {
+            Photos.Add(photo);
+        }
+        
+        RefreshPhotosView();
+    }
+    
+    /// <summary>
+    /// Handler voor filter label button - toont label dropdown
+    /// </summary>
+    private async void FilterLabelButton_Clicked(object? sender, EventArgs e)
+    {
+        var options = new List<string> { "Alle fotos" };
+        options.AddRange(AvailableLabels);
+        
+        var selected = await Application.Current.MainPage.DisplayActionSheet(
+            "Filter op label",
+            "Annuleren",
+            null,
+            options.ToArray());
+        
+        if (selected != null && selected != "Annuleren")
+        {
+            if (selected == "Alle fotos")
+            {
+                _selectedLabelFilter = null;
+                FilterLabelButton.Text = "Filter: Label";
+            }
+            else
+            {
+                _selectedLabelFilter = selected;
+                FilterLabelButton.Text = $"Filter: {selected}";
+            }
+            
+            ApplyFiltersAndSort();
+        }
+    }
+    
+    /// <summary>
+    /// Handler voor sort date button - toggles tussen newest/oldest
+    /// </summary>
+    private void SortDateButton_Clicked(object? sender, EventArgs e)
+    {
+        _sortNewestFirst = !_sortNewestFirst;
+        
+        if (_sortNewestFirst)
+        {
+            SortDateButton.Text = "Newest ↑";
+        }
+        else
+        {
+            SortDateButton.Text = "Oldest ↑";
+        }
+        
+        ApplyFiltersAndSort();
+    }
+    
+    /// <summary>
+    /// Handelt SizeChanged event af voor header om responsieve layout aan te passen
+    /// </summary>
+    private void HeaderGrid_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is Grid headerGrid && GalleryTitle != null)
+        {
+            double width = headerGrid.Width;
+            
+            // Op kleinere schermen: verklein font size en pas button spacing aan
+            if (width > 0)
+            {
+                if (width < 600)
+                {
+                    // Klein scherm: verklein title en buttons
+                    GalleryTitle.FontSize = 24;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 12;
+                    if (SortDateButton != null) SortDateButton.FontSize = 12;
+                    if (SelectButton != null) SelectButton.FontSize = 12;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 6;
+                }
+                else if (width < 900)
+                {
+                    // Medium scherm
+                    GalleryTitle.FontSize = 28;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 13;
+                    if (SortDateButton != null) SortDateButton.FontSize = 13;
+                    if (SelectButton != null) SelectButton.FontSize = 13;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 8;
+                }
+                else
+                {
+                    // Groot scherm: normale grootte
+                    GalleryTitle.FontSize = 32;
+                    if (FilterLabelButton != null) FilterLabelButton.FontSize = 14;
+                    if (SortDateButton != null) SortDateButton.FontSize = 14;
+                    if (SelectButton != null) SelectButton.FontSize = 14;
+                    if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 10;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handelt SizeChanged event af voor PhotosCollection om responsieve Span aan te passen
+    /// </summary>
+    private void PhotosCollection_SizeChanged(object? sender, EventArgs e)
+    {
+        if (sender is CollectionView collectionView && collectionView.ItemsLayout is GridItemsLayout gridLayout)
+        {
+            double width = collectionView.Width;
+            
+            // Bepaal aantal kolommen op basis van schermbreedte
+            // Minimaal 150px per thumbnail, met spacing
+            int span = 4; // default
+            
+            if (width > 0)
+            {
+                // Account voor margins en spacing (16px spacing + padding)
+                double availableWidth = width - 40; // 20px margin each side
+                double minThumbnailWidth = 150;
+                double spacingPerItem = 16;
+                
+                // Bereken aantal kolommen: (availableWidth + spacing) / (minThumbnailWidth + spacing)
+                int calculatedSpan = (int)Math.Floor((availableWidth + spacingPerItem) / (minThumbnailWidth + spacingPerItem));
+                
+                // Beperk tot redelijke grenzen - maximaal 4 kolommen per rij
+                span = Math.Max(2, Math.Min(4, calculatedSpan));
+                
+                // Update Span alleen als het anders is
+                if (gridLayout.Span != span)
+                {
+                    gridLayout.Span = span;
+                    System.Diagnostics.Debug.WriteLine($"Updated GridItemsLayout Span to {span} for width {width}");
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Forceert correcte item sizing voor Windows platform en initialiseert responsieve Span
     /// </summary>
     private void PhotosCollection_Loaded(object? sender, EventArgs e)
     {
+        // Initialiseer responsieve Span
+        PhotosCollection_SizeChanged(sender, e);
+        
         // Force refresh van de CollectionView op Windows om correcte sizing te krijgen
         try
         {
