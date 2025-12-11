@@ -28,7 +28,15 @@ public partial class Gallery : ContentPage
     // Filter and sort properties
     private string? _selectedLabelFilter = null; // null = alle labels
     private bool _sortNewestFirst = true; // true = newest first, false = oldest first
+    private RatingSortOrder _ratingSortOrder = RatingSortOrder.None; // None, Highest, Lowest
     private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
+
+    private enum RatingSortOrder
+    {
+        None,
+        Highest,
+        Lowest
+    }
 
     public Gallery()
     {
@@ -536,7 +544,62 @@ public partial class Gallery : ContentPage
         OverlayFileSize.Text = photo.FileSizeText;
         FullscreenOverlay.IsVisible = true;
 
+        UpdateRatingStars(photo.Rating);
         DisplayLabels(photo);
+    }
+
+    /// <summary>
+    /// Werkt de sterren weergave bij op basis van de rating
+    /// </summary>
+    private void UpdateRatingStars(int rating)
+    {
+        var stars = new[] { Star1, Star2, Star3, Star4, Star5 };
+        for (int i = 0; i < stars.Length; i++)
+        {
+            if (stars[i] != null)
+            {
+                // Geel (#FFD700) voor geselecteerde sterren, grijs voor niet-geselecteerde
+                stars[i].TextColor = i < rating ? Color.FromArgb("#FFD700") : Color.FromArgb("#CCCCCC");
+            }
+        }
+    }
+
+    /// <summary>
+    /// Handelt klik op een ster af - stelt de rating in
+    /// </summary>
+    private async void Star_Clicked(object? sender, EventArgs e)
+    {
+        if (currentPhoto == null || sender is not Button starButton)
+            return;
+
+        if (starButton.CommandParameter is string ratingStr && int.TryParse(ratingStr, out int rating))
+        {
+            try
+            {
+                // Als dezelfde rating opnieuw wordt aangeklikt, reset naar 0 (geen rating)
+                if (currentPhoto.Rating == rating)
+                {
+                    currentPhoto.Rating = 0;
+                }
+                else
+                {
+                    currentPhoto.Rating = rating;
+                }
+                
+                // Update database
+                await _databaseService.UpdatePhotoAsync(currentPhoto);
+                
+                // Update sterren weergave
+                UpdateRatingStars(currentPhoto.Rating);
+                
+                System.Diagnostics.Debug.WriteLine($"Rating updated to {currentPhoto.Rating} for photo {currentPhoto.Id}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error updating rating: {ex.Message}");
+                await Application.Current?.MainPage?.DisplayAlert("Fout", "Kon rating niet opslaan.", "OK");
+            }
+        }
     }
 
     private void CloseFullscreen(object sender, EventArgs e)
@@ -1141,7 +1204,7 @@ public partial class Gallery : ContentPage
                 await Application.Current.MainPage.DisplayAlert("Info", "Fotoboek export komt binnenkort!", "OK");
                 break;
             case "Labels toevoegen":
-                await Application.Current.MainPage.DisplayAlert("Info", "Bulk label toevoegen komt binnenkort!", "OK");
+                await AddLabelsToSelectedPhotosAsync();
                 break;
         }
     }
@@ -1218,6 +1281,97 @@ public partial class Gallery : ContentPage
     }
     
     /// <summary>
+    /// Voegt een bestaand label toe aan alle geselecteerde foto's
+    /// </summary>
+    private async Task AddLabelsToSelectedPhotosAsync()
+    {
+        if (_selectedPhotos.Count == 0)
+            return;
+
+        try
+        {
+            // Haal alle unieke labels op
+            var allLabels = await _databaseService.GetAllUniqueLabelsAsync();
+            
+            if (allLabels.Count == 0)
+            {
+                await Application.Current?.MainPage?.DisplayAlert(
+                    "Geen labels beschikbaar",
+                    "Er zijn nog geen labels aangemaakt. Maak eerst labels aan door ze toe te voegen aan individuele foto's.",
+                    "OK");
+                return;
+            }
+
+            // Toon action sheet met alle beschikbare labels
+            var selectedLabel = await Application.Current?.MainPage?.DisplayActionSheet(
+                "Selecteer een label om toe te voegen",
+                "Annuleren",
+                null,
+                allLabels.ToArray());
+
+            if (selectedLabel == null || selectedLabel == "Annuleren" || string.IsNullOrWhiteSpace(selectedLabel))
+                return;
+
+            // Voeg het label toe aan alle geselecteerde foto's
+            int successCount = 0;
+            int alreadyExistsCount = 0;
+            int errorCount = 0;
+
+            foreach (var photo in _selectedPhotos.ToList())
+            {
+                try
+                {
+                    var result = await _databaseService.AddLabelAsync(photo.Id, selectedLabel);
+                    
+                    if (result > 0)
+                    {
+                        successCount++;
+                        // Herlaad labels voor deze foto
+                        await _databaseService.LoadLabelsForPhotoAsync(photo);
+                    }
+                    else
+                    {
+                        // Label bestaat al voor deze foto
+                        alreadyExistsCount++;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error adding label to photo {photo.Id}: {ex.Message}");
+                    errorCount++;
+                }
+            }
+
+            // Update beschikbare labels voor filter
+            UpdateAvailableLabels();
+
+            // Toon resultaat
+            string message = $"{successCount} foto(s) bijgewerkt";
+            if (alreadyExistsCount > 0)
+            {
+                message += $", {alreadyExistsCount} foto(s) hadden het label al";
+            }
+            if (errorCount > 0)
+            {
+                message += $", {errorCount} fout(en) opgetreden";
+            }
+
+            await Application.Current?.MainPage?.DisplayAlert(
+                "Labels toegevoegd",
+                message,
+                "OK");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error in AddLabelsToSelectedPhotosAsync: {ex.Message}");
+            await Application.Current?.MainPage?.DisplayAlert(
+                "Fout",
+                "Kon labels niet toevoegen aan geselecteerde foto's.",
+                "OK");
+        }
+    }
+
+    /// <summary>
     /// Update de lijst met beschikbare labels voor filtering
     /// </summary>
     private void UpdateAvailableLabels()
@@ -1249,14 +1403,28 @@ public partial class Gallery : ContentPage
                 p.Labels.Any(l => string.Equals(l, _selectedLabelFilter, StringComparison.OrdinalIgnoreCase)));
         }
         
-        // Sort op datum
-        if (_sortNewestFirst)
+        // Sort op rating (als actief)
+        if (_ratingSortOrder == RatingSortOrder.Highest)
         {
-            filteredPhotos = filteredPhotos.OrderByDescending(p => p.CreatedDate);
+            // Eerst op rating (hoogste eerst), dan op datum als tie-breaker
+            filteredPhotos = filteredPhotos.OrderByDescending(p => p.Rating).ThenByDescending(p => p.CreatedDate);
+        }
+        else if (_ratingSortOrder == RatingSortOrder.Lowest)
+        {
+            // Eerst op rating (laagste eerst), maar alleen foto's met rating > 0, dan foto's zonder rating
+            filteredPhotos = filteredPhotos.OrderBy(p => p.Rating == 0 ? int.MaxValue : p.Rating).ThenByDescending(p => p.CreatedDate);
         }
         else
         {
-            filteredPhotos = filteredPhotos.OrderBy(p => p.CreatedDate);
+            // Sort op datum (normale sort)
+            if (_sortNewestFirst)
+            {
+                filteredPhotos = filteredPhotos.OrderByDescending(p => p.CreatedDate);
+            }
+            else
+            {
+                filteredPhotos = filteredPhotos.OrderBy(p => p.CreatedDate);
+            }
         }
         
         // Update Photos collectie
@@ -1318,6 +1486,31 @@ public partial class Gallery : ContentPage
         
         ApplyFiltersAndSort();
     }
+
+    /// <summary>
+    /// Handler voor filter rating button - toggles tussen None, Highest, Lowest
+    /// </summary>
+    private void FilterRatingButton_Clicked(object? sender, EventArgs e)
+    {
+        // Cycle through: None -> Highest -> Lowest -> None
+        switch (_ratingSortOrder)
+        {
+            case RatingSortOrder.None:
+                _ratingSortOrder = RatingSortOrder.Highest;
+                FilterRatingButton.Text = "Filter: Rating ↑";
+                break;
+            case RatingSortOrder.Highest:
+                _ratingSortOrder = RatingSortOrder.Lowest;
+                FilterRatingButton.Text = "Filter: Rating ↓";
+                break;
+            case RatingSortOrder.Lowest:
+                _ratingSortOrder = RatingSortOrder.None;
+                FilterRatingButton.Text = "Filter: Rating";
+                break;
+        }
+        
+        ApplyFiltersAndSort();
+    }
     
     /// <summary>
     /// Handelt SizeChanged event af voor header om responsieve layout aan te passen
@@ -1337,6 +1530,7 @@ public partial class Gallery : ContentPage
                     GalleryTitle.FontSize = 24;
                     if (FilterLabelButton != null) FilterLabelButton.FontSize = 12;
                     if (SortDateButton != null) SortDateButton.FontSize = 12;
+                    if (FilterRatingButton != null) FilterRatingButton.FontSize = 12;
                     if (SelectButton != null) SelectButton.FontSize = 12;
                     if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 6;
                 }
@@ -1346,6 +1540,7 @@ public partial class Gallery : ContentPage
                     GalleryTitle.FontSize = 28;
                     if (FilterLabelButton != null) FilterLabelButton.FontSize = 13;
                     if (SortDateButton != null) SortDateButton.FontSize = 13;
+                    if (FilterRatingButton != null) FilterRatingButton.FontSize = 13;
                     if (SelectButton != null) SelectButton.FontSize = 13;
                     if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 8;
                 }
@@ -1355,6 +1550,7 @@ public partial class Gallery : ContentPage
                     GalleryTitle.FontSize = 32;
                     if (FilterLabelButton != null) FilterLabelButton.FontSize = 14;
                     if (SortDateButton != null) SortDateButton.FontSize = 14;
+                    if (FilterRatingButton != null) FilterRatingButton.FontSize = 14;
                     if (SelectButton != null) SelectButton.FontSize = 14;
                     if (HeaderButtonsLayout != null) HeaderButtonsLayout.Spacing = 10;
                 }

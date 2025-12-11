@@ -69,7 +69,7 @@
                                 HorizontalOptions="End"
                                 Clicked="SelectButton_Clicked" />
                         <Button x:Name="DeleteButton"
-                                Text="Verwijderen"
+                                Text="Delete"
                                 BackgroundColor="#FF3B30"
                                 TextColor="White"
                                 CornerRadius="8"

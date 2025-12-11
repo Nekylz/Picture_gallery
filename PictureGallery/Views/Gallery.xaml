@@ -142,6 +142,14 @@
                             Padding="12,8"
                             FontSize="14"
                             Clicked="SortDateButton_Clicked" />
+                        <Button x:Name="FilterRatingButton"
+                            Text="Filter: Rating"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Clicked="FilterRatingButton_Clicked" />
                         <Button x:Name="SelectButton"
                             Text="Select"
                             BackgroundColor="#EDEDED"
@@ -317,6 +325,75 @@
                             <Label x:Name="OverlayDimensions" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
                             <Label x:Name="OverlayFileSize" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
                         </StackLayout>
+
+                        <!-- RATING STARS -->
+                        <HorizontalStackLayout x:Name="RatingStarsContainer"
+                                              Spacing="6"
+                                              HorizontalOptions="Center"
+                                              VerticalOptions="Center"
+                                              Margin="0,10,0,10"
+                                              Padding="10,0">
+                            <Button x:Name="Star1"
+                                    Text="★"
+                                    FontSize="28"
+                                    TextColor="#CCCCCC"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    Clicked="Star_Clicked"
+                                    CommandParameter="1" />
+                            <Button x:Name="Star2"
+                                    Text="★"
+                                    FontSize="28"
+                                    TextColor="#CCCCCC"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    Clicked="Star_Clicked"
+                                    CommandParameter="2" />
+                            <Button x:Name="Star3"
+                                    Text="★"
+                                    FontSize="28"
+                                    TextColor="#CCCCCC"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    Clicked="Star_Clicked"
+                                    CommandParameter="3" />
+                            <Button x:Name="Star4"
+                                    Text="★"
+                                    FontSize="28"
+                                    TextColor="#CCCCCC"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    Clicked="Star_Clicked"
+                                    CommandParameter="4" />
+                            <Button x:Name="Star5"
+                                    Text="★"
+                                    FontSize="28"
+                                    TextColor="#CCCCCC"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    Clicked="Star_Clicked"
+                                    CommandParameter="5" />
+                        </HorizontalStackLayout>
 
                     <!-- ADD LABEL -->
                     <Grid HorizontalOptions="Center">

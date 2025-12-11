@@ -19,11 +19,11 @@
                       ColumnDefinitions="*,Auto">
                     <VerticalStackLayout Grid.Column="0"
                                        Spacing="4">
-                        <Label Text="Nieuw Fotoboek"
+                        <Label Text="New Photobook"
                                FontSize="20"
                                FontAttributes="Bold"
                                TextColor="White" />
-                        <Label Text="Organiseer je foto's in een nieuwe collectie"
+                        <Label Text="Organize your photos into a new collection"
                                FontSize="13"
                                TextColor="#CCCCCC" />
                     </VerticalStackLayout>
@@ -42,7 +42,7 @@
                     <VerticalStackLayout Padding="24" Spacing="24">
                         <!-- Basic Information Section -->
                         <VerticalStackLayout Spacing="12">
-                            <Label Text="Basis Informatie"
+                            <Label Text="Basic Information"
                                    FontSize="16"
                                    FontAttributes="Bold"
                                    TextColor="White" />
@@ -50,7 +50,7 @@
                             <!-- Album Title Field -->
                             <VerticalStackLayout Spacing="8">
                                 <HorizontalStackLayout Spacing="4">
-                                    <Label Text="Fotoboek Titel"
+                                    <Label Text="Photobook Title"
                                            FontSize="14"
                                            TextColor="White" />
                                     <Label Text="*"
@@ -59,7 +59,7 @@
                                            FontAttributes="Bold" />
                                 </HorizontalStackLayout>
                                 <Entry x:Name="TitleEntry"
-                                       Placeholder="Bijv. Zomervakantie 2024"
+                                       Placeholder="e.g., Summer Vacation 2024"
                                        PlaceholderColor="#999999"
                                        TextColor="White"
                                        BackgroundColor="#3A3A3C"
@@ -69,11 +69,11 @@
 
                             <!-- Description Field -->
                             <VerticalStackLayout Spacing="8">
-                                <Label Text="Beschrijving"
+                                <Label Text="Description"
                                        FontSize="14"
                                        TextColor="White" />
                                 <Editor x:Name="DescriptionEditor"
-                                       Placeholder="Voeg een beschrijving toe voor dit fotoboek..."
+                                       Placeholder="Add a description for this photobook..."
                                        PlaceholderColor="#999999"
                                        TextColor="White"
                                        BackgroundColor="#3A3A3C"
@@ -91,7 +91,7 @@
                       ColumnDefinitions="*,Auto"
                       ColumnSpacing="12">
                     <Button x:Name="CancelButton"
-                            Text="Annuleren"
+                            Text="Cancel"
                             BackgroundColor="#3A3A3C"
                             TextColor="White"
                             CornerRadius="8"
@@ -100,7 +100,7 @@
                             Grid.Column="0"
                             Clicked="CancelButton_Clicked" />
                     <Button x:Name="CreateButton"
-                            Text="Aanmaken"
+                            Text="Create"
                             BackgroundColor="#007AFF"
                             TextColor="White"
                             CornerRadius="8"
