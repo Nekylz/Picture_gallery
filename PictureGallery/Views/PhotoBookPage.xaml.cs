@@ -1,6 +1,7 @@
 ﻿using PictureGallery.Models;
 using PictureGallery.Services;
 using CommunityToolkit.Maui.Storage;
+using Microsoft.Maui.Storage;
 
 namespace PictureGallery.Views;
 public partial class PhotoBookPage : ContentPage
@@ -10,6 +11,12 @@ public partial class PhotoBookPage : ContentPage
 
     // Maximum aantal foto's per pagina
     private static readonly int MaxPhotosPerPage = 12;
+    
+    // Bepaalt welke PDF engine wordt gebruikt
+    // Bepaalt wanneer snelle PDF nodig is
+    private const int FastPdfThreshold = 8;
+    private const bool ForceFastPdf = true; // zet op false om PDFSharp te gebruiken voor test omgeving
+
 
     public PhotoBookPage()
     {
@@ -338,6 +345,7 @@ public partial class PhotoBookPage : ContentPage
                 await DisplayAlert("Geen selectie", "Selecteer minstens één foto.", "OK");
                 return;
             }
+            
 
             // Laat gebruiker folder kiezen
             var folderResult = await FolderPicker.Default.PickAsync(default);
@@ -352,11 +360,58 @@ public partial class PhotoBookPage : ContentPage
             // Toon progress indicator
             ProgressFrame.IsVisible = true;
             PdfProgressBar.Progress = 0;
-            ProgressLabel.Text = "0% (0 van 0 foto's)";
+            ProgressLabel.Text = $"0% (0 van {selectedPhotos.Length} foto's)";
+            
+            // Forceer UI update
+            await Task.Delay(100);
 
-            // PDF genereren met progress updates
-            await GeneratePdfWithProgress(selectedPhotos, pdfPath);
+            // Bepaalt of snelle PDF conversie nodig is
+            //bool useFastPdf = selectedPhotos.Length > FastPdfThreshold; remove comments to have normal function again by 8 pictures skiasharp
+           // for test using skiasharp  
+            bool useFastPdf =
+                ForceFastPdf ||
+                selectedPhotos.Length > FastPdfThreshold;
 
+            // Controleer of snelle PDF is ontgrendeld (Na gesperk met PO)
+            //bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+
+            // Gebruik snelle PDF als:
+            // gebruiker upgrade heeft
+            // Of meer dan 8 foto's
+            //bool useFastPdf =
+                //fastUnlocked ||
+                //selectedPhotos.Length > FastPdfThreshold;
+
+
+                // PDF genereren (gratis of snel)
+                if (useFastPdf)
+                {
+                    int total = selectedPhotos.Length;
+
+                    await Task.Run(() =>
+                    {
+                        SkiaSharpPdfService.ImagesToPdf(
+                            selectedPhotos,
+                            pdfPath,
+                            (processed, totalImages) =>
+                            {
+                                double progress = (double)processed / totalImages;
+
+                                MainThread.BeginInvokeOnMainThread(() =>
+                                {
+                                    PdfProgressBar.Progress = progress;
+                                    ProgressLabel.Text =
+                                        $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
+                                });
+                            });
+                    });
+                }
+                else
+                {
+                    // Standaard PDF conversie (PdfSharp)
+                    await GeneratePdfWithProgress(selectedPhotos, pdfPath);
+                }
+            
             // Verberg progress
             ProgressFrame.IsVisible = false;
 
@@ -401,67 +456,67 @@ public partial class PhotoBookPage : ContentPage
         }
     }
 
-    // Genereert PDF met progress updates
+    // Genereert PDF met progress updates (geoptimaliseerd)
     private async Task GeneratePdfWithProgress(string[] images, string outputPath)
     {
         int totalImages = images.Length;
         int processed = 0;
 
-        // Update eerste keer voor initialisatie
         await MainThread.InvokeOnMainThreadAsync(() =>
         {
             PdfProgressBar.Progress = 0;
             ProgressLabel.Text = $"0% (0 van {totalImages} foto's)";
         });
 
-        // Kleine vertraging zodat UI kan renderen
-        await Task.Delay(100);
+        await Task.Delay(50);
 
-        // Maak PDF document aan
-        var doc = new PdfSharpCore.Pdf.PdfDocument();
-
-        foreach (var imgPath in images)
+        // Doe de zware PDF conversie op een background thread
+        await Task.Run(async () =>
         {
-            if (!File.Exists(imgPath))
-            {
-                processed++;
-                continue;
-            }
+            var doc = new PdfSharpCore.Pdf.PdfDocument();
 
-            using (var img = PdfSharpCore.Drawing.XImage.FromFile(imgPath))
+            foreach (var imgPath in images)
             {
-                var page = doc.AddPage();
-                page.Width = img.PixelWidth * 72 / img.HorizontalResolution;
-                page.Height = img.PixelHeight * 72 / img.VerticalResolution;
-
-                using (var gfx = PdfSharpCore.Drawing.XGraphics.FromPdfPage(page))
+                if (!File.Exists(imgPath))
                 {
-                    gfx.DrawImage(img, 0, 0, page.Width, page.Height);
+                    processed++;
+                    continue;
+                }
+
+                using (var img = PdfSharpCore.Drawing.XImage.FromFile(imgPath))
+                {
+                    var page = doc.AddPage();
+                    page.Width = img.PixelWidth * 72 / img.HorizontalResolution;
+                    page.Height = img.PixelHeight * 72 / img.VerticalResolution;
+
+                    using (var gfx = PdfSharpCore.Drawing.XGraphics.FromPdfPage(page))
+                    {
+                        gfx.DrawImage(img, 0, 0, page.Width, page.Height);
+                    }
+                }
+
+                processed++;
+                double progress = (double)processed / totalImages;
+
+                // Update UI minder vaak voor betere performance
+                if (processed % 3 == 0 || processed == totalImages)
+                {
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        PdfProgressBar.Progress = progress;
+                        ProgressLabel.Text = $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
+                    });
                 }
             }
 
-            processed++;
-            double progress = (double)processed / totalImages;
-
-            // Update UI op met betere feedback
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
-                PdfProgressBar.Progress = progress;
-                ProgressLabel.Text = $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
+                ProgressLabel.Text = "Bestand wordt opgeslagen...";
+                PdfProgressBar.Progress = 1.0;
             });
 
-            // Kleine vertraging zodat UI kan updaten 
-            await Task.Delay(50);
-        }
-
-        // Toon dat bestand wordt opgeslagen
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            ProgressLabel.Text = "Bestand wordt opgeslagen...";
-            PdfProgressBar.Progress = 1.0;
+            doc.Save(outputPath);
+            doc.Close();
         });
-
-        doc.Save(outputPath);
-        doc.Close();
     }
 }
