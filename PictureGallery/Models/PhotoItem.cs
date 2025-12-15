@@ -28,6 +28,8 @@ public class PhotoItem : INotifyPropertyChanged
     [Indexed]
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
+    public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
+
     // Runtime property - not stored in database
     [Ignore]
     public ImageSource? ImageSource { get; set; }

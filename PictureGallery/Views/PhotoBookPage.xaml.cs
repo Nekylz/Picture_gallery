@@ -4,6 +4,7 @@ using CommunityToolkit.Maui.Storage;
 using Microsoft.Maui.Storage;
 
 namespace PictureGallery.Views;
+
 public partial class PhotoBookPage : ContentPage
 {
     // Houdt alle pagina's en foto's bij
