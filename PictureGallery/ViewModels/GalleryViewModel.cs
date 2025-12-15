@@ -658,6 +658,25 @@ public partial class GalleryViewModel : BaseViewModel
             System.Diagnostics.Debug.WriteLine($"Label '{newLabel}' successfully added with ID: {result}");
 
             await _databaseService.LoadLabelsForPhotoAsync(CurrentPhoto);
+            
+            // Force UI refresh on Windows by explicitly notifying CurrentPhoto changed
+            // Windows may not detect ObservableCollection changes in bindings, so we force a property change
+            if (CurrentPhoto != null)
+            {
+                var photoRef = CurrentPhoto;
+                var wasVisible = IsFullscreenOverlayVisible;
+                
+                // Temporarily refresh CurrentPhoto property to force binding update on Windows
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    CurrentPhoto = null;
+                    CurrentPhoto = photoRef;
+                    // Ensure overlay stays visible if it was visible
+                    if (wasVisible)
+                        IsFullscreenOverlayVisible = true;
+                });
+            }
+            
             UpdateAvailableLabels();
         }
         catch (Exception ex)
@@ -676,6 +695,22 @@ public partial class GalleryViewModel : BaseViewModel
         {
             await _databaseService.RemoveLabelAsync(CurrentPhoto.Id, label);
             await _databaseService.LoadLabelsForPhotoAsync(CurrentPhoto);
+            
+            // Force UI refresh on Windows by explicitly notifying CurrentPhoto changed
+            if (CurrentPhoto != null)
+            {
+                var photoRef = CurrentPhoto;
+                var wasVisible = IsFullscreenOverlayVisible;
+                
+                await MainThread.InvokeOnMainThreadAsync(() =>
+                {
+                    CurrentPhoto = null;
+                    CurrentPhoto = photoRef;
+                    // Ensure overlay stays visible if it was visible
+                    if (wasVisible)
+                        IsFullscreenOverlayVisible = true;
+                });
+            }
         }
         catch (Exception ex)
         {
