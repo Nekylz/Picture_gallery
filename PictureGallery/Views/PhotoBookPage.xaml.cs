@@ -135,12 +135,58 @@ public partial class PhotoBookPage : ContentPage
                     PhotoBook.Pages.Add(page);
                 }
 
-                // Foto toevoegen
+                // Foto opslaan in database
+                try
+                {
+                    await _databaseService.AddPhotoAsync(photo);
+                }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error saving photo to database: {dbEx.Message}");
+                    await DisplayAlert("Database Fout", $"Kon foto niet opslaan: {dbEx.Message}", "OK");
+                    continue;
+                }
+
+                // Initialize ImageSource voor de foto
+                if (photo.FileExists)
+                {
+                    photo.InitializeImageSource();
+                }
+
+                // Foto toevoegen aan pagina
                 page.Photos.Add(photo);
+
+                // PhotoBook updaten in database als het al een ID heeft
+                if (_photoBookId.HasValue)
+                {
+                    try
+                    {
+                        await _databaseService.UpdatePhotoBookAsync(PhotoBook);
+                    }
+                    catch (Exception updateEx)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error updating PhotoBook: {updateEx.Message}");
+                        // Niet fatal, foto is al toegevoegd aan UI
+                    }
+                }
 
                 // Ga automatisch naar laatste pagina
                 PhotoCarousel.Position = PhotoBook.Pages.Count - 1;
             }
+            
+            // Force UI refresh - ObservableCollection should auto-update, but ensure CarouselView refreshes
+            await Microsoft.Maui.Controls.Application.Current?.Dispatcher.DispatchAsync(() =>
+            {
+                // Refresh CarouselView to show new photos
+                var currentPosition = PhotoCarousel.Position;
+                var itemsSource = PhotoCarousel.ItemsSource;
+                PhotoCarousel.ItemsSource = null;
+                PhotoCarousel.ItemsSource = itemsSource;
+                if (currentPosition >= 0 && currentPosition < PhotoBook.Pages.Count)
+                {
+                    PhotoCarousel.Position = currentPosition;
+                }
+            });
         }
         catch (Exception ex)
         {
