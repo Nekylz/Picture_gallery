@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentView xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PictureGallery.Views.CreatePhotoBookModal">
+    <Grid BackgroundColor="#CC000000">
+        <Frame BackgroundColor="#2C2C2E"
+               CornerRadius="12"
+               Padding="0"
+               HasShadow="True"
+               Margin="40"
+               HorizontalOptions="Center"
+               VerticalOptions="Center"
+               WidthRequest="500"
+               MaximumWidthRequest="500">
+            <Grid RowDefinitions="Auto,*,Auto">
+                <!-- Header -->
+                <Grid Grid.Row="0"
+                      Padding="24,20,24,16"
+                      ColumnDefinitions="*,Auto">
+                    <VerticalStackLayout Grid.Column="0"
+                                       Spacing="4">
+                        <Label Text="New Photobook"
+                               FontSize="20"
+                               FontAttributes="Bold"
+                               TextColor="White" />
+                        <Label Text="Organize your photos into a new collection"
+                               FontSize="13"
+                               TextColor="#CCCCCC" />
+                    </VerticalStackLayout>
+                    <Button Text="✕"
+                           FontSize="18"
+                           TextColor="White"
+                           BackgroundColor="Transparent"
+                           WidthRequest="32"
+                           HeightRequest="32"
+                           Grid.Column="1"
+                           Clicked="CloseButton_Clicked" />
+                </Grid>
+
+                <!-- Content -->
+                <ScrollView Grid.Row="1">
+                    <VerticalStackLayout Padding="24" Spacing="24">
+                        <!-- Basic Information Section -->
+                        <VerticalStackLayout Spacing="12">
+                            <Label Text="Basic Information"
+                                   FontSize="16"
+                                   FontAttributes="Bold"
+                                   TextColor="White" />
+
+                            <!-- Album Title Field -->
+                            <VerticalStackLayout Spacing="8">
+                                <HorizontalStackLayout Spacing="4">
+                                    <Label Text="Photobook Title"
+                                           FontSize="14"
+                                           TextColor="White" />
+                                    <Label Text="*"
+                                           FontSize="14"
+                                           TextColor="#FF3B30"
+                                           FontAttributes="Bold" />
+                                </HorizontalStackLayout>
+                                <Entry x:Name="TitleEntry"
+                                       Placeholder="e.g., Summer Vacation 2024"
+                                       PlaceholderColor="#999999"
+                                       TextColor="White"
+                                       BackgroundColor="#3A3A3C"
+                                       HeightRequest="44"
+                                       FontSize="14" />
+                            </VerticalStackLayout>
+
+                            <!-- Description Field -->
+                            <VerticalStackLayout Spacing="8">
+                                <Label Text="Description"
+                                       FontSize="14"
+                                       TextColor="White" />
+                                <Editor x:Name="DescriptionEditor"
+                                       Placeholder="Add a description for this photobook..."
+                                       PlaceholderColor="#999999"
+                                       TextColor="White"
+                                       BackgroundColor="#3A3A3C"
+                                       HeightRequest="100"
+                                       FontSize="14"
+                                       AutoSize="TextChanges" />
+                            </VerticalStackLayout>
+                        </VerticalStackLayout>
+                    </VerticalStackLayout>
+                </ScrollView>
+
+                <!-- Footer Buttons -->
+                <Grid Grid.Row="2"
+                      Padding="24,16,24,24"
+                      ColumnDefinitions="*,Auto"
+                      ColumnSpacing="12">
+                    <Button x:Name="CancelButton"
+                            Text="Cancel"
+                            BackgroundColor="#3A3A3C"
+                            TextColor="White"
+                            CornerRadius="8"
+                            Padding="20,12"
+                            FontSize="16"
+                            Grid.Column="0"
+                            Clicked="CancelButton_Clicked" />
+                    <Button x:Name="CreateButton"
+                            Text="Create"
+                            BackgroundColor="#007AFF"
+                            TextColor="White"
+                            CornerRadius="8"
+                            Padding="20,12"
+                            FontSize="16"
+                            Grid.Column="1"
+                            Clicked="CreateButton_Clicked" />
+                </Grid>
+            </Grid>
+        </Frame>
+    </Grid>
+</ContentView>
+

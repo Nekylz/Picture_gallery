@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:viewmodels="clr-namespace:PictureGallery.ViewModels"
              x:Class="PictureGallery.Views.Gallery"
              Title="Gallery">
-    <Grid x:Name="MainGrid" ColumnDefinitions="220,*" BackgroundColor="#F3E1DD">
+    <Grid x:Name="MainGrid" 
+          ColumnDefinitions="220,*" 
+          BackgroundColor="#F3E1DD">
         <!-- SIDEBAR -->
         <Border x:Name="Sidebar"
                 Grid.Column="0"
@@ -27,7 +30,7 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="ImportPhoto_Tapped" />
+                        <TapGestureRecognizer Command="{Binding ImportPhotoCommand}" />
                     </Frame.GestureRecognizers>
                     <Label Text="Import Photo"
                            FontSize="16"
@@ -44,7 +47,7 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="OpenPhotoBook_Tapped" />
+                        <TapGestureRecognizer Command="{Binding OpenPhotoBookCommand}" />
                     </Frame.GestureRecognizers>
                     <Label Text="Photo Book"
                        FontSize="16"
@@ -62,7 +65,7 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Tapped="AddLabelButton_Clicked" />
+                        <TapGestureRecognizer Command="{Binding LabelDropdownCommand}" />
                     </Frame.GestureRecognizers>
                     <Label Text="Labels"
                            FontSize="16"
@@ -111,8 +114,9 @@
                                  Margin="0,60,0,0">
 
                 <!-- HEADER -->
-                <Grid ColumnDefinitions="Auto,*">
-                    <Label 
+                <Grid ColumnDefinitions="Auto,*" 
+                      SizeChanged="HeaderGrid_SizeChanged">
+                    <Label x:Name="GalleryTitle"
                     Text="Photo Gallery"
                     FontSize="32"
                     TextColor="Black"
@@ -120,51 +124,108 @@
                     HorizontalOptions="Start"
                     VerticalOptions="Center" />
 
-                    <HorizontalStackLayout Grid.Column="1"
-                                       Spacing="10"
+                    <HorizontalStackLayout x:Name="HeaderButtonsLayout"
+                                       Grid.Column="1"
+                                       Spacing="8"
                                        HorizontalOptions="End"
                                        VerticalOptions="Center">
-                        <Button Text="Filter: Label"
-                            BackgroundColor="#EDEDED"
-                            TextColor="#333333"
-                            CornerRadius="12" />
-                        <Button Text="Newest ↑"
-                            BackgroundColor="#EDEDED"
-                            TextColor="#333333"
-                            CornerRadius="12" />
-                        <Button x:Name="SelectButton"
-                            Text="Select"
+                        <Button x:Name="FilterLabelButton"
+                            Text="{Binding FilterLabelButtonText}"
                             BackgroundColor="#EDEDED"
                             TextColor="#333333"
                             CornerRadius="12"
-                            Clicked="SelectButton_Clicked" />
+                            Padding="12,8"
+                            FontSize="14"
+                            Command="{Binding FilterLabelCommand}" />
+                        <Button x:Name="SortDateButton"
+                            Text="{Binding SortDateButtonText}"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Command="{Binding SortDateCommand}" />
+                        <Button x:Name="FilterRatingButton"
+                            Text="{Binding FilterRatingButtonText}"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Command="{Binding FilterRatingCommand}" />
+                        <Button x:Name="SelectButton"
+                            Text="{Binding SelectButtonText}"
+                            BackgroundColor="#EDEDED"
+                            TextColor="#333333"
+                            CornerRadius="12"
+                            Padding="12,8"
+                            FontSize="14"
+                            Command="{Binding SelectButtonCommand}" />
                         <Button x:Name="SelectionActionsButton"
                             Text="⋯"
-                            FontSize="24"
-                            WidthRequest="44"
-                            HeightRequest="44"
+                            FontSize="20"
+                            WidthRequest="40"
+                            HeightRequest="40"
+                            Padding="0"
                            BackgroundColor="#EDEDED"
                             TextColor="#333333"
-                            CornerRadius="22"
-                            IsVisible="False"
-                            Clicked="SelectionActionsButton_Clicked" />
+                            CornerRadius="20"
+                            IsVisible="{Binding SelectionActionsButtonVisible}"
+                            Command="{Binding SelectionActionsCommand}" />
                     </HorizontalStackLayout>
                 </Grid>
 
                 <!-- PHOTO COUNT -->
                 <Label x:Name="PhotoCountLabel"
-                   Text="{Binding Photos.Count, StringFormat='Fotos: {0}'}"
+                   Text="{Binding Photos.Count, StringFormat='Photos: {0}'}"
                    HorizontalOptions="Start"
                    Margin="0,5,0,0"
-                   IsVisible="False" />
+                   IsVisible="{Binding HasPhotos}" />
+
+            <!-- EMPTY STATE VIEW -->
+            <Grid x:Name="EmptyStateView"
+                  Margin="0,20,0,0"
+                  HorizontalOptions="Fill"
+                  VerticalOptions="FillAndExpand"
+                  IsVisible="{Binding HasPhotos, Converter={StaticResource InverseBoolConverter}, ConverterParameter=Inverse}">
+                <Grid Padding="20">
+                    <Frame Padding="20"
+                           HasShadow="True"
+                           CornerRadius="12"
+                           BackgroundColor="White"
+                           BorderColor="#E0E0E0">
+                        <VerticalStackLayout Spacing="10" HorizontalOptions="Center" VerticalOptions="Center">
+                            <Label Text="Nog geen foto's"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#333333"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Upload je eerste foto om de gallery te vullen."
+                                   FontSize="14"
+                                   TextColor="#555555"
+                                   HorizontalTextAlignment="Center" />
+                            <Button Text="Import Photo"
+                                    Padding="16,10"
+                                    BackgroundColor="#EDEDED"
+                                    TextColor="#333333"
+                                    CornerRadius="12"
+                                    Command="{Binding UploadMediaCommand}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+            </Grid>
 
             <!-- COLLECTIONVIEW -->
             <CollectionView x:Name="PhotosCollection"
                             Margin="0,20,0,0"
                             HorizontalOptions="Fill"
-                            VerticalOptions="Fill"
+                            VerticalOptions="FillAndExpand"
                             ItemSizingStrategy="MeasureAllItems"
-                            Loaded="PhotosCollection_Loaded">
+                            ItemsSource="{Binding Photos}"
+                            IsVisible="{Binding HasPhotos}"
+                            BindingContext="{Binding .}"
+                            Loaded="PhotosCollection_Loaded"
+                            SizeChanged="PhotosCollection_SizeChanged">
                     <CollectionView.ItemsLayout>
                         <GridItemsLayout Orientation="Vertical"
                                      Span="4"
@@ -183,9 +244,9 @@
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
                                 <Grid.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="OnPhotoTapped"
-                                                      NumberOfTapsRequired="1"
-                                                      CommandParameter="{Binding .}" />
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.PhotoTappedCommand}"
+                                                      CommandParameter="{Binding .}"
+                                                      NumberOfTapsRequired="1" />
                                 </Grid.GestureRecognizers>
                                 <Frame x:Name="PhotoFrame"
                                    Grid.Row="0"
@@ -254,21 +315,90 @@
             <!-- FULLSCREEN OVERLAY -->
             <Grid x:Name="FullscreenOverlay"
                   BackgroundColor="#CC000000"
-                  IsVisible="False"
+                  IsVisible="{Binding IsFullscreenOverlayVisible}"
                   VerticalOptions="Fill"
                   HorizontalOptions="Fill">
 
                 <ScrollView VerticalOptions="Fill" HorizontalOptions="Fill">
                     <VerticalStackLayout VerticalOptions="Center" HorizontalOptions="Center" Spacing="10" Padding="20">
 
-                        <Image x:Name="FullscreenImage" Aspect="AspectFit" VerticalOptions="Center" HorizontalOptions="Center" MaximumHeightRequest="500" />
+                        <Image x:Name="FullscreenImage" Source="{Binding FullscreenImageSource}" Aspect="AspectFit" VerticalOptions="Center" HorizontalOptions="Center" MaximumHeightRequest="500" />
 
                         <!-- INFO -->
                         <StackLayout VerticalOptions="End" HorizontalOptions="Center" Spacing="5" BackgroundColor="Black" Opacity="0.5">
-                            <Label x:Name="OverlayFileName" TextColor="White" FontSize="16" HorizontalTextAlignment="Center" />
-                            <Label x:Name="OverlayDimensions" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
-                            <Label x:Name="OverlayFileSize" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
+                            <Label x:Name="OverlayFileName" Text="{Binding OverlayFileName}" TextColor="White" FontSize="16" HorizontalTextAlignment="Center" />
+                            <Label x:Name="OverlayDimensions" Text="{Binding OverlayDimensions}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
+                            <Label x:Name="OverlayFileSize" Text="{Binding OverlayFileSize}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
                         </StackLayout>
+
+                        <!-- RATING STARS -->
+                        <HorizontalStackLayout x:Name="RatingStarsContainer"
+                                              Spacing="6"
+                                              HorizontalOptions="Center"
+                                              VerticalOptions="Center"
+                                              Margin="0,10,0,10"
+                                              Padding="10,0">
+                            <Button x:Name="Star1"
+                                    Text="★"
+                                    FontSize="28"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    TextColor="{Binding CurrentPhotoRating, Converter={StaticResource RatingToColorConverter}, ConverterParameter=1}"
+                                    Command="{Binding StarClickedCommand}"
+                                    CommandParameter="1" />
+                            <Button x:Name="Star2"
+                                    Text="★"
+                                    FontSize="28"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    TextColor="{Binding CurrentPhotoRating, Converter={StaticResource RatingToColorConverter}, ConverterParameter=2}"
+                                    Command="{Binding StarClickedCommand}"
+                                    CommandParameter="2" />
+                            <Button x:Name="Star3"
+                                    Text="★"
+                                    FontSize="28"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    TextColor="{Binding CurrentPhotoRating, Converter={StaticResource RatingToColorConverter}, ConverterParameter=3}"
+                                    Command="{Binding StarClickedCommand}"
+                                    CommandParameter="3" />
+                            <Button x:Name="Star4"
+                                    Text="★"
+                                    FontSize="28"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    TextColor="{Binding CurrentPhotoRating, Converter={StaticResource RatingToColorConverter}, ConverterParameter=4}"
+                                    Command="{Binding StarClickedCommand}"
+                                    CommandParameter="4" />
+                            <Button x:Name="Star5"
+                                    Text="★"
+                                    FontSize="28"
+                                    BackgroundColor="Transparent"
+                                    BorderColor="Transparent"
+                                    BorderWidth="0"
+                                    WidthRequest="36"
+                                    HeightRequest="36"
+                                    Padding="0"
+                                    TextColor="{Binding CurrentPhotoRating, Converter={StaticResource RatingToColorConverter}, ConverterParameter=5}"
+                                    Command="{Binding StarClickedCommand}"
+                                    CommandParameter="5" />
+                        </HorizontalStackLayout>
 
                     <!-- ADD LABEL -->
                     <Grid HorizontalOptions="Center">
@@ -287,7 +417,7 @@
                                    WidthRequest="80"
                                    HeightRequest="44">
                                 <Frame.GestureRecognizers>
-                                    <TapGestureRecognizer Tapped="LabelDropdownButton_Clicked" />
+                                    <TapGestureRecognizer Command="{Binding LabelDropdownCommand}" />
                                 </Frame.GestureRecognizers>
                                 <HorizontalStackLayout Spacing="4" HorizontalOptions="Center" VerticalOptions="Center">
                                     <Label Text="Labels" 
@@ -303,12 +433,13 @@
                                 </HorizontalStackLayout>
                             </Frame>
                             <Entry x:Name="LabelEntry"
+                                   Text="{Binding LabelEntryText, Mode=TwoWay}"
                                    Placeholder="Add label"
                                    WidthRequest="160"
                                    BackgroundColor="White"
                                    TextColor="Black"
                                    PlaceholderColor="#777777" />
-                            <Button Text="Add" Clicked="AddLabelButton_Clicked" />
+                            <Button Text="Add" Command="{Binding AddLabelCommand}" />
                         </StackLayout>
                         
                         <!-- LABEL DROPDOWN (in Grid row below button, aligned with Labels button) -->
@@ -338,8 +469,71 @@
                     </Grid>
 
                         <!-- DISPLAY LABELS -->
-                        <StackLayout x:Name="LabelContainer" Orientation="Horizontal" Spacing="5" HorizontalOptions="Center">
-                        </StackLayout>
+                        <Grid x:Name="LabelsGrid" 
+                              HorizontalOptions="Fill" 
+                              Margin="0,10,0,0"
+                              BindingContext="{Binding .}">
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            
+                            <ScrollView Orientation="Horizontal"
+                                        Grid.Row="0"
+                                        HorizontalOptions="Fill"
+                                        HorizontalScrollBarVisibility="Never"
+                                        IsVisible="{Binding CurrentPhoto.Labels, Converter={StaticResource CollectionCountToBoolConverter}}">
+                                <HorizontalStackLayout x:Name="LabelContainer"
+                                                       Spacing="10"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center"
+                                                       Padding="20,0"
+                                                       BindableLayout.ItemsSource="{Binding CurrentPhoto.Labels}">
+                                    <BindableLayout.ItemTemplate>
+                                        <DataTemplate>
+                                            <Frame BackgroundColor="#6750A4"
+                                                   CornerRadius="12"
+                                                   Padding="10,8,8,8"
+                                                   HasShadow="False"
+                                                   BorderColor="Transparent"
+                                                   HorizontalOptions="Start"
+                                                   VerticalOptions="Center">
+                                                <HorizontalStackLayout Spacing="6"
+                                                                       VerticalOptions="Center">
+                                                    <Label Text="{Binding .}"
+                                                           FontSize="14"
+                                                           FontAttributes="Bold"
+                                                           TextColor="White"
+                                                           VerticalOptions="Center"
+                                                           VerticalTextAlignment="Center"
+                                                           LineBreakMode="NoWrap" />
+                                                    <Button Text="✕"
+                                                            FontSize="12"
+                                                            TextColor="White"
+                                                            BackgroundColor="Transparent"
+                                                            BorderColor="Transparent"
+                                                            BorderWidth="0"
+                                                            Padding="0"
+                                                            WidthRequest="18"
+                                                            HeightRequest="18"
+                                                            VerticalOptions="Center"
+                                                            HorizontalOptions="End"
+                                                            Command="{Binding Source={RelativeSource AncestorType={x:Type Grid}}, Path=BindingContext.RemoveLabelCommand}"
+                                                            CommandParameter="{Binding .}" />
+                                                </HorizontalStackLayout>
+                                            </Frame>
+                                        </DataTemplate>
+                                    </BindableLayout.ItemTemplate>
+                                </HorizontalStackLayout>
+                            </ScrollView>
+                            
+                            <!-- Empty state for labels -->
+                            <Label Text="No labels"
+                                   Grid.Row="0"
+                                   FontSize="14"
+                                   TextColor="#CCCCCC"
+                                   HorizontalOptions="Center"
+                                   IsVisible="{Binding CurrentPhoto.Labels, Converter={StaticResource InverseCollectionCountToBoolConverter}}" />
+                        </Grid>
                     </VerticalStackLayout>
                 </ScrollView>
 
@@ -349,7 +543,7 @@
                     VerticalOptions="Start"
                     HorizontalOptions="End"
                     Margin="20"
-                    Clicked="CloseFullscreen" />
+                    Command="{Binding CloseFullscreenCommand}" />
             </Grid>
         </Grid>
     </Grid>
