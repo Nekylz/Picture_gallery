@@ -147,14 +147,18 @@ public partial class PhotoBookPage : ContentPage
                     continue;
                 }
 
-                // Initialize ImageSource voor de foto
-                if (photo.FileExists)
+                // Alles op main thread voor UI updates
+                await Microsoft.Maui.Controls.Application.Current?.Dispatcher.DispatchAsync(() =>
                 {
-                    photo.InitializeImageSource();
-                }
+                    // Initialize ImageSource voor de foto VOORDAT we toevoegen
+                    if (photo.FileExists)
+                    {
+                        photo.InitializeImageSource();
+                    }
 
-                // Foto toevoegen aan pagina
-                page.Photos.Add(photo);
+                    // Foto toevoegen aan pagina (triggert UI update)
+                    page.Photos.Add(photo);
+                });
 
                 // PhotoBook updaten in database als het al een ID heeft
                 if (_photoBookId.HasValue)

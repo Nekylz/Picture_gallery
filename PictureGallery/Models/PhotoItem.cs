@@ -31,8 +31,20 @@ public class PhotoItem : INotifyPropertyChanged
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
 
     // Runtime property - not stored in database
+    private ImageSource? _imageSource;
     [Ignore]
-    public ImageSource? ImageSource { get; set; }
+    public ImageSource? ImageSource
+    {
+        get => _imageSource;
+        set
+        {
+            if (_imageSource != value)
+            {
+                _imageSource = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     // Runtime property - loaded from database separately
     [Ignore]
