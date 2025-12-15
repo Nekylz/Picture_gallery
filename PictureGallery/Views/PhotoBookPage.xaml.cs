@@ -1,6 +1,7 @@
 ﻿using PictureGallery.Models;
 using PictureGallery.Services;
 using CommunityToolkit.Maui.Storage;
+using System.Linq;
 
 namespace PictureGallery.Views;
 
@@ -11,16 +12,68 @@ public partial class PhotoBookPage : ContentPage
 
     // Maximum aantal foto's per pagina
     private static readonly int MaxPhotosPerPage = 12;
+    
+    private readonly DatabaseService _databaseService;
+    private readonly int? _photoBookId;
 
-    public PhotoBookPage()
+    public PhotoBookPage() : this(null)
     {
+    }
+
+    public PhotoBookPage(int? photoBookId)
+    {
+        _photoBookId = photoBookId;
+        _databaseService = new DatabaseService();
+        
         InitializeComponent();
         BindingContext = this;
 
         PhotoCarousel.PositionChanged += OnPageChanged;
 
-        // Eerste pagina aanmaken bij opstart
-        PhotoBook.Pages.Add(new PhotoBookPageModel());
+        // Load photo book if ID is provided, otherwise create empty
+        _ = LoadPhotoBookAsync();
+    }
+    
+    private async Task LoadPhotoBookAsync()
+    {
+        try
+        {
+            if (_photoBookId.HasValue)
+            {
+                var loadedPhotoBook = await _databaseService.GetPhotoBookByIdAsync(_photoBookId.Value);
+                if (loadedPhotoBook != null)
+                {
+                    PhotoBook = loadedPhotoBook;
+                    
+                    // Initialize ImageSource for all photos
+                    foreach (var page in PhotoBook.Pages)
+                    {
+                        foreach (var photo in page.Photos)
+                        {
+                            if (photo.FileExists)
+                            {
+                                photo.InitializeImageSource();
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // If no photo book loaded or no ID, create first page
+            if (PhotoBook.Pages.Count == 0)
+            {
+                PhotoBook.Pages.Add(new PhotoBookPageModel());
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading PhotoBook: {ex.Message}");
+            // Create first page on error
+            if (PhotoBook.Pages.Count == 0)
+            {
+                PhotoBook.Pages.Add(new PhotoBookPageModel());
+            }
+        }
     }
 
     /// <summary>
