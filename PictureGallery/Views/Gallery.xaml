@@ -65,9 +65,9 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding LabelDropdownCommand}" />
+                        <TapGestureRecognizer Command="{Binding RemoveLabelSidebarCommand}" />
                     </Frame.GestureRecognizers>
-                    <Label Text="Labels"
+                    <Label Text="All labels"
                            FontSize="16"
                            FontAttributes="Bold"
                            TextColor="Black"

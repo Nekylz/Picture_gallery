@@ -165,7 +165,7 @@ public class DatabaseService
         return await db.Table<PhotoItem>().DeleteAsync(p => p.Id == id);
     }
 
-    // ========== LABEL OPERATIONS ==========
+    // Labels
 
     /// <summary>
     /// Voegt een label toe aan een foto (hoofdletterongevoelig)
@@ -274,6 +274,33 @@ public class DatabaseService
     }
 
     /// <summary>
+    /// Verwijdert een label van alle foto's en uit de database
+    /// </summary>
+    /// <param name="labelText"></param>
+    /// <returns></returns>
+    public async Task<int> DeleteLabelFromAllPhotosAsync(string labelText)
+    {
+        var db = await GetDatabaseAsync();
+
+        // Haal alle labels op en filter hoofdletterongevoelig
+        var allLabels = await db.Table<PhotoLabel>().ToListAsync();
+        var matchingLabels = allLabels
+            .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!matchingLabels.Any())
+            return 0;
+
+        // Verwijder het label van alle foto's door elke matching label te verwijderen
+        int deletedCount = 0;
+        foreach (var label in matchingLabels)
+        {
+            deletedCount += await db.DeleteAsync(label);
+        }
+        return deletedCount;
+    }
+
+    /// <summary>
     /// Remove a label by ID
     /// </summary>
     public async Task<int> RemoveLabelByIdAsync(int labelId)
@@ -341,7 +368,7 @@ public class DatabaseService
         return photos;
     }
 
-    // ========== UTILITY METHODS ==========
+    // UTILS
 
     /// <summary>
     /// Get the total number of photos
@@ -363,7 +390,7 @@ public class DatabaseService
         await db.DeleteAllAsync<PhotoBook>();
     }
 
-    // ========== PHOTOBOOK OPERATIONS ==========
+   // PHOTOBOOK
 
     /// <summary>
     /// Voegt een nieuwe PhotoBook toe aan de database
