@@ -164,7 +164,7 @@
                         <Button x:Name="SelectionActionsButton"
                             Text="⋯"
                             FontSize="20"
-                            WidthRequest="40"
+                           WidthRequest="40"
                             HeightRequest="40"
                             Padding="0"
                            BackgroundColor="#EDEDED"

@@ -70,17 +70,22 @@ public class PhotoBook : INotifyPropertyChanged
         }
     }
 
+    // Cached thumbnail image source
+    private ImageSource? _thumbnailImage;
+    
     [Ignore]
     public ImageSource? ThumbnailImage
     {
-        get
+        get => _thumbnailImage;
+        set
         {
-            // Geef de eerste foto van de eerste pagina als thumbnail
-            if (Pages?.Count > 0 && Pages[0].Photos?.Count > 0)
+            if (_thumbnailImage != value)
             {
-                return Pages[0].Photos[0].ImageSource;
+                _thumbnailImage = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasThumbnail));
+                OnPropertyChanged(nameof(HasNoThumbnail));
             }
-            return null;
         }
     }
 

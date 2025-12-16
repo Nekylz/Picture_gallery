@@ -14,6 +14,7 @@
             <converters:RatingToColorConverter x:Key="RatingToColorConverter" />
             <converters:CollectionCountToBoolConverter x:Key="CollectionCountToBoolConverter" />
             <converters:InverseCollectionCountToBoolConverter x:Key="InverseCollectionCountToBoolConverter" />
+            <converters:WidthToPhotoSizeConverter x:Key="WidthToPhotoSizeConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

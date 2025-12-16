@@ -76,6 +76,12 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
             IsBusy = true;
             var loadedPhotoBooks = await _databaseService.GetAllPhotoBooksAsync();
 
+            // Load thumbnails for each photo book
+            foreach (var photoBook in loadedPhotoBooks)
+            {
+                await LoadThumbnailForPhotoBookAsync(photoBook);
+            }
+
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 PhotoBooks.Clear();
@@ -102,7 +108,8 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
         try
         {
             var photoBookCount = await _databaseService.GetPhotoBookCountAsync();
-            var photoCount = await _databaseService.GetPhotoCountAsync();
+            // Only count photos that are in PhotoBooks (not all photos in the application)
+            var photoCount = await _databaseService.GetPhotoBookPhotoCountAsync();
 
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
@@ -113,6 +120,31 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error updating statistics: {ex.Message}");
+        }
+    }
+
+    private async Task LoadThumbnailForPhotoBookAsync(PhotoBook photoBook)
+    {
+        try
+        {
+            // Get first photo for this photo book (optimized for thumbnail loading)
+            var firstPhoto = await _databaseService.GetFirstPhotoByPhotoBookIdAsync(photoBook.Id);
+            
+            if (firstPhoto != null && firstPhoto.ImageSource != null)
+            {
+                // Set thumbnail to first photo's ImageSource
+                photoBook.ThumbnailImage = firstPhoto.ImageSource;
+            }
+            else
+            {
+                // No photos, thumbnail remains null (will show placeholder)
+                photoBook.ThumbnailImage = null;
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error loading thumbnail for PhotoBook {photoBook.Id}: {ex.Message}");
+            photoBook.ThumbnailImage = null;
         }
     }
 

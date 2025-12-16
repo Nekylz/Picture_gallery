@@ -857,25 +857,79 @@ public partial class GalleryViewModel : BaseViewModel
         {
             var photosToDelete = _selectedPhotos.ToList();
 
+            int successCount = 0;
+            int errorCount = 0;
+            var errors = new List<string>();
+
             foreach (var photo in photosToDelete)
             {
                 photo.IsSelected = false;
 
+                // Try to delete file, but continue even if it fails
                 if (File.Exists(photo.FilePath))
                 {
-                    File.Delete(photo.FilePath);
+                    try
+                    {
+                        File.Delete(photo.FilePath);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Cannot delete file (permission denied): {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"Permission denied: {photo.FileName}");
+                    }
+                    catch (IOException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Cannot delete file (in use): {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"File in use: {photo.FileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error deleting file: {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"Error deleting {photo.FileName}: {ex.Message}");
+                    }
                 }
 
-                await _databaseService.DeletePhotoAsync(photo);
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
+                // Always delete from database, even if file deletion failed
+                try
                 {
-                    _allPhotos.Remove(photo);
-                    Photos.Remove(photo);
-                });
+                    await _databaseService.DeletePhotoAsync(photo);
+
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        _allPhotos.Remove(photo);
+                        Photos.Remove(photo);
+                    });
+
+                    successCount++;
+                }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error deleting photo from database: {dbEx.Message}");
+                    errorCount++;
+                    errors.Add($"Database error for {photo.FileName}: {dbEx.Message}");
+                }
             }
 
-            await ShowAlertAsync("Done", $"{photosToDelete.Count} photos deleted.");
+            // Show appropriate message
+            if (errorCount == 0 && errors.Count == 0)
+            {
+                await ShowAlertAsync("Done", $"{successCount} photo(s) deleted.");
+            }
+            else if (successCount > 0)
+            {
+                string message = $"{successCount} photo(s) removed from gallery.";
+                if (errors.Count > 0)
+                {
+                    message += $"\n\nNote: Some files could not be deleted:\n{string.Join("\n", errors.Take(5))}";
+                    if (errors.Count > 5)
+                        message += $"\n... and {errors.Count - 5} more.";
+                }
+                await ShowAlertAsync("Partially Complete", message);
+            }
+            else
+            {
+                await ShowAlertAsync("Error", $"Could not delete photos:\n{string.Join("\n", errors.Take(5))}");
+            }
 
             _selectedPhotos.Clear();
             SelectedPhotosCount = 0;

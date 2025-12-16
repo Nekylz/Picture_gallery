@@ -29,6 +29,13 @@ public class PhotoItem : INotifyPropertyChanged
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
+    
+    /// <summary>
+    /// PhotoBookId to indicate if photo belongs only to a PhotoBook (not in main gallery)
+    /// If null or 0, photo is in main gallery
+    /// </summary>
+    [Indexed]
+    public int? PhotoBookId { get; set; }
 
     // Runtime property - not stored in database
     private ImageSource? _imageSource;
@@ -80,9 +87,27 @@ public class PhotoItem : INotifyPropertyChanged
     /// </summary>
     public void InitializeImageSource()
     {
-        if (File.Exists(FilePath))
+        if (string.IsNullOrEmpty(FilePath))
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: FilePath is null or empty for photo {Id}");
+            return;
+        }
+        
+        if (!File.Exists(FilePath))
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: File does not exist at path '{FilePath}' for photo {Id}");
+            return;
+        }
+        
+        try
         {
             ImageSource = ImageSource.FromFile(FilePath);
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: Successfully created ImageSource for photo {Id} from '{FilePath}'");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ERROR creating ImageSource for photo {Id}: {ex.Message}");
+            throw;
         }
     }
 

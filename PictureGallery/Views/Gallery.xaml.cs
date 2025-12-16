@@ -27,7 +27,7 @@ public partial class Gallery : ContentPage
             // Zet BindingContext expliciet op FullscreenOverlay zodat alle bindings daar werken
             var fullscreenOverlay = this.FindByName<Grid>("FullscreenOverlay");
             if (fullscreenOverlay != null)
-            {
+                {
                 fullscreenOverlay.BindingContext = viewModel;
             }
         }
@@ -51,7 +51,7 @@ public partial class Gallery : ContentPage
                 double width = headerGrid.Width;
 
                 if (width > 0)
-                {
+        {
                     if (width < 600)
                     {
                         galleryTitle.FontSize = 24;
@@ -62,14 +62,14 @@ public partial class Gallery : ContentPage
                         if (headerButtonsLayout != null) headerButtonsLayout.Spacing = 6;
                     }
                     else if (width < 900)
-                    {
+        {
                         galleryTitle.FontSize = 28;
                         if (filterLabelButton != null) filterLabelButton.FontSize = 13;
                         if (sortDateButton != null) sortDateButton.FontSize = 13;
                         if (filterRatingButton != null) filterRatingButton.FontSize = 13;
                         if (selectButton != null) selectButton.FontSize = 13;
                         if (headerButtonsLayout != null) headerButtonsLayout.Spacing = 8;
-                    }
+        }
                     else
                     {
                         galleryTitle.FontSize = 32;
@@ -85,7 +85,7 @@ public partial class Gallery : ContentPage
     }
 
     private void PhotosCollection_SizeChanged(object? sender, EventArgs e)
-    {
+                {
         if (sender is CollectionView collectionView && collectionView.ItemsLayout is Microsoft.Maui.Controls.GridItemsLayout gridLayout)
         {
             double width = collectionView.Width;
@@ -114,7 +114,7 @@ public partial class Gallery : ContentPage
     private void PhotosCollection_Loaded(object? sender, EventArgs e)
     {
         PhotosCollection_SizeChanged(sender, e);
-        
+
         // Zet BindingContext expliciet op CollectionView zodat RelativeSource in DataTemplate werkt
         if (PhotosCollection != null && BindingContext != null)
         {
@@ -126,7 +126,7 @@ public partial class Gallery : ContentPage
             if (Microsoft.Maui.Devices.DeviceInfo.Platform == Microsoft.Maui.Devices.DevicePlatform.WinUI)
             {
                 Microsoft.Maui.Controls.Application.Current?.Dispatcher.Dispatch(() =>
-                {
+            {
                     var currentSource = PhotosCollection.ItemsSource;
                     PhotosCollection.ItemsSource = null;
                     PhotosCollection.ItemsSource = currentSource;
@@ -150,10 +150,10 @@ public partial class Gallery : ContentPage
                 double expectedHeight = grid.Width / aspectRatio;
 
                 if (Math.Abs(grid.Height - expectedHeight) > 1)
-                {
+            {
                     grid.HeightRequest = expectedHeight;
-                }
-            }
+        }
+    }
         }
     }
 
@@ -163,7 +163,7 @@ public partial class Gallery : ContentPage
         {
             bool isVisible = Sidebar.IsVisible;
             Sidebar.IsVisible = !isVisible;
-
+            
             if (isVisible)
             {
                 MainGrid.ColumnDefinitions[0].Width = 0;
