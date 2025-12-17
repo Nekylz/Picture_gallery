@@ -16,8 +16,45 @@ public partial class Gallery : ContentPage
         
         // Subscribe to ViewModel events for MVVM communication
         viewModel.MapLocationUpdateRequested += OnMapLocationUpdateRequested;
-        
+        viewModel.RequestShowCreatePhotoBookModal += OnRequestShowCreatePhotoBookModal;
+
+        // Setup modal events
+        CreatePhotoBookModal.OnCreate += OnPhotoBookCreated;
+        CreatePhotoBookModal.OnCancel += OnPhotoBookCanceled;
+
         InitializeMap();
+    }
+
+    private void OnRequestShowCreatePhotoBookModal()
+    {
+        if (BindingContext is GalleryViewModel viewModel)
+        {
+            CreatePhotoBookModal.Reset();
+            viewModel.IsCreatePhotoBookModalVisible = true;
+        }
+    }
+
+    private void OnPhotoBookCreated(object? sender, string result)
+    {
+        if (BindingContext is GalleryViewModel viewModel)
+        {
+            var parts = result.Split('|');
+            if (parts.Length >= 2)
+            {
+                var name = parts[0].Trim();
+                var description = parts[1].Trim();
+                viewModel.IsCreatePhotoBookModalVisible = false;
+                viewModel.OnPhotoBookCreatedForExport(name, description);
+            }
+        }
+    }
+
+    private void OnPhotoBookCanceled(object? sender, EventArgs e)
+    {
+        if (BindingContext is GalleryViewModel viewModel)
+        {
+            viewModel.IsCreatePhotoBookModalVisible = false;
+        }
     }
     
     private void OnMapLocationUpdateRequested(double lat, double lon)

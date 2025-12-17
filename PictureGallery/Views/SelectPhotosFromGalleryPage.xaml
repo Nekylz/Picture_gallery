@@ -1,0 +1,168 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             x:Class="PictureGallery.Views.SelectPhotosFromGalleryPage"
+             Title="Select Photos"
+             BackgroundColor="#F5F5F5">
+    
+    <Grid RowDefinitions="Auto,*,Auto">
+        <!-- Top Toolbar -->
+        <Border Grid.Row="0"
+                BackgroundColor="White"
+                StrokeThickness="0"
+                Padding="15"
+                Stroke="#E0E0E0">
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Fill">
+                <Label Text="{Binding SelectedCount, StringFormat='{0} selected'}"
+                       FontSize="16"
+                       FontAttributes="Bold"
+                       VerticalOptions="Center"
+                       TextColor="#333333" />
+                <Label Text=" | "
+                       VerticalOptions="Center" />
+                <Label Text="{Binding TotalCount, StringFormat='{0} photos'}"
+                       FontSize="14"
+                       VerticalOptions="Center"
+                       TextColor="#666666" />
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- Photo Grid -->
+        <CollectionView Grid.Row="1"
+                        x:Name="PhotosCollection"
+                        Margin="0,20,0,0"
+                        HorizontalOptions="Fill"
+                        VerticalOptions="FillAndExpand"
+                        ItemSizingStrategy="MeasureAllItems"
+                        ItemsSource="{Binding Photos}"
+                        IsVisible="{Binding HasPhotos}"
+                        BindingContext="{Binding .}"
+                        Loaded="PhotosCollection_Loaded"
+                        SizeChanged="PhotosCollection_SizeChanged">
+            <CollectionView.ItemsLayout>
+                <GridItemsLayout Orientation="Vertical"
+                                 Span="4"
+                                 HorizontalItemSpacing="16"
+                                 VerticalItemSpacing="16" />
+            </CollectionView.ItemsLayout>
+            <CollectionView.ItemTemplate>
+                <DataTemplate>
+                    <Grid HorizontalOptions="Fill"
+                          VerticalOptions="Fill"
+                          SizeChanged="Grid_SizeChanged">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.GestureRecognizers>
+                            <TapGestureRecognizer 
+                                Command="{Binding Source={RelativeSource AncestorType={x:Type CollectionView}}, Path=BindingContext.PhotoTappedCommand}"
+                                CommandParameter="{Binding .}"
+                                NumberOfTapsRequired="1" />
+                        </Grid.GestureRecognizers>
+                        <Frame x:Name="PhotoFrame"
+                               Grid.Row="0"
+                               Grid.Column="0"
+                               HorizontalOptions="Fill"
+                               VerticalOptions="Fill"
+                               Padding="10"
+                               Margin="0"
+                               HasShadow="True"
+                               CornerRadius="8"
+                               BackgroundColor="White"
+                               BorderColor="#E0E0E0">
+                            <VisualStateManager.VisualStateGroups>
+                                <VisualStateGroup>
+                                    <VisualState x:Name="Normal">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#E0E0E0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="PointerOver">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#C5C5C5" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                    <VisualState x:Name="Pressed">
+                                        <VisualState.Setters>
+                                            <Setter Property="Frame.BorderColor" Value="#A0A0A0" />
+                                        </VisualState.Setters>
+                                    </VisualState>
+                                </VisualStateGroup>
+                            </VisualStateManager.VisualStateGroups>
+                            <Image Source="{Binding ImageSource}"
+                                   Aspect="AspectFit"
+                                   HorizontalOptions="Fill"
+                                   VerticalOptions="Fill"
+                                   BackgroundColor="White" />
+                        </Frame>
+                        
+                        <!-- Selection Overlay -->
+                        <Frame x:Name="SelectionOverlay"
+                               Grid.Row="0"
+                               Grid.Column="0"
+                               HorizontalOptions="Fill"
+                               VerticalOptions="Fill"
+                               Padding="0"
+                               Margin="0"
+                               HasShadow="False"
+                               CornerRadius="8"
+                               BackgroundColor="#806750A4"
+                               BorderColor="#6750A4"
+                               IsVisible="{Binding IsSelected}"
+                               InputTransparent="True">
+                            <Label Text="✓"
+                                   FontSize="48"
+                                   FontAttributes="Bold"
+                                   TextColor="White"
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center" />
+                        </Frame>
+                    </Grid>
+                </DataTemplate>
+            </CollectionView.ItemTemplate>
+            <CollectionView.EmptyView>
+                <Label Text="No photos available in gallery"
+                       FontSize="16"
+                       TextColor="#666666"
+                       HorizontalOptions="Center"
+                       VerticalOptions="Center" />
+            </CollectionView.EmptyView>
+        </CollectionView>
+
+        <!-- Empty State -->
+        <Grid Grid.Row="1"
+              IsVisible="{Binding HasNoPhotos}">
+            <Label Text="No photos available in gallery"
+                   FontSize="18"
+                   TextColor="#666666"
+                   HorizontalOptions="Center"
+                   VerticalOptions="Center" />
+        </Grid>
+
+        <!-- Bottom Toolbar -->
+        <Border Grid.Row="2"
+                BackgroundColor="White"
+                StrokeThickness="0"
+                Padding="15"
+                Stroke="#E0E0E0">
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Fill">
+                <Button Text="Cancel"
+                        Command="{Binding CancelCommand}"
+                        BackgroundColor="#E0E0E0"
+                        TextColor="#333333"
+                        CornerRadius="8"
+                        Padding="20,10" />
+                <Button Text="Add Selected"
+                        Command="{Binding AddSelectedCommand}"
+                        IsEnabled="{Binding HasSelection}"
+                        BackgroundColor="#2196F3"
+                        TextColor="White"
+                        CornerRadius="8"
+                        Padding="20,10" />
+            </HorizontalStackLayout>
+        </Border>
+    </Grid>
+</ContentPage>
+

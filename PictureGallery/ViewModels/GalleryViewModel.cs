@@ -46,6 +46,7 @@ public partial class GalleryViewModel : BaseViewModel
     private int selectedPhotosCount;
 
     private HashSet<PhotoItem> _selectedPhotos = new();
+    private bool _pendingPhotoBookCreation = false;
 
     // Filter and sort properties
     [ObservableProperty]
@@ -94,12 +95,16 @@ public partial class GalleryViewModel : BaseViewModel
     private int currentPhotoRating;
 
     [ObservableProperty]
+    private bool isCreatePhotoBookModalVisible;
+
+    [ObservableProperty]
     private string labelEntryText = string.Empty;
 
     private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
 
     // Event for map location updates (MVVM communication)
     public event Action<double, double>? MapLocationUpdateRequested;
+    public event Action? RequestShowCreatePhotoBookModal;
 
     public GalleryViewModel()
     {
@@ -904,7 +909,7 @@ public partial class GalleryViewModel : BaseViewModel
                 await DeleteSelectedPhotosAsync();
                 break;
             case "Export to Photo Book":
-                await ShowAlertAsync("Info", "Photo book export coming soon!");
+                await ExportSelectedPhotosToPhotoBookAsync();
                 break;
             case "Add Labels":
                 await AddLabelsToSelectedPhotosAsync();
@@ -1025,6 +1030,194 @@ public partial class GalleryViewModel : BaseViewModel
         {
             System.Diagnostics.Debug.WriteLine($"Error deleting photos: {ex.Message}");
             await ShowAlertAsync("Error", $"Error deleting: {ex.Message}");
+        }
+    }
+
+    private async Task ExportSelectedPhotosToPhotoBookAsync()
+    {
+        if (_selectedPhotos.Count == 0)
+            return;
+
+        try
+        {
+            // Get all PhotoBooks from database
+            var photoBooks = await _databaseService.GetAllPhotoBooksAsync();
+
+            if (Application.Current?.MainPage == null)
+                return;
+
+            // Build action sheet options - include "Create New Photo Book" option
+            var options = new List<string> { "Create New Photo Book" };
+            if (photoBooks.Count > 0)
+            {
+                options.AddRange(photoBooks.Select(pb => pb.Name));
+            }
+
+            var selectedOption = await Application.Current.MainPage.DisplayActionSheet(
+                $"Export {_selectedPhotos.Count} photo(s) to Photo Book",
+                "Cancel",
+                null,
+                options.ToArray());
+
+            if (selectedOption == null || selectedOption == "Cancel")
+                return;
+
+            PhotoBook? targetPhotoBook = null;
+
+            if (selectedOption == "Create New Photo Book")
+            {
+                // Show the create photo book modal - this will be handled by the View
+                // The View will call OnPhotoBookCreatedForExport when the modal is submitted
+                _pendingPhotoBookCreation = true;
+                RequestShowCreatePhotoBookModal?.Invoke();
+                return; // Exit here, the export will continue when modal is submitted
+            }
+            else
+            {
+                // Find selected PhotoBook
+                targetPhotoBook = photoBooks.FirstOrDefault(pb => pb.Name == selectedOption);
+
+                if (targetPhotoBook == null)
+                {
+                    await ShowAlertAsync("Error", "Could not find the selected photo book.");
+                    return;
+                }
+            }
+
+            // Export photos to the selected PhotoBook
+            await ExportPhotosToPhotoBookAsync(targetPhotoBook);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error exporting photos to PhotoBook: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not export photos: {ex.Message}");
+        }
+    }
+
+    public async Task OnPhotoBookCreatedForExport(string name, string description)
+    {
+        if (!_pendingPhotoBookCreation)
+            return;
+
+        _pendingPhotoBookCreation = false;
+
+        try
+        {
+            // Create new PhotoBook
+            var newPhotoBook = new PhotoBook
+            {
+                Name = name.Trim(),
+                Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+                CreatedDate = DateTime.Now,
+                UpdatedDate = DateTime.Now
+            };
+
+            var photoBookId = await _databaseService.AddPhotoBookAsync(newPhotoBook);
+            var targetPhotoBook = await _databaseService.GetPhotoBookByIdAsync(photoBookId);
+
+            if (targetPhotoBook == null)
+            {
+                await ShowAlertAsync("Error", "Could not create the photo book.");
+                return;
+            }
+
+            // Now export photos to the newly created PhotoBook
+            await ExportPhotosToPhotoBookAsync(targetPhotoBook);
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Error", $"Could not create photo book: {ex.Message}");
+        }
+    }
+
+    private async Task ExportPhotosToPhotoBookAsync(PhotoBook targetPhotoBook)
+    {
+        try
+        {
+            // Add photos to PhotoBook by creating copies in the database
+            // This way, original photos remain in main gallery and copies are in PhotoBook
+            var photosToExport = _selectedPhotos.ToList();
+            var addedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var photo in photosToExport)
+            {
+                try
+                {
+                    // Create a copy of the photo for the PhotoBook
+                    // Original photo stays in main gallery (PhotoBookId remains null)
+                    var photoCopy = new PhotoItem
+                    {
+                        FileName = photo.FileName,
+                        FilePath = photo.FilePath,
+                        Width = photo.Width,
+                        Height = photo.Height,
+                        FileSizeMb = photo.FileSizeMb,
+                        CreatedDate = photo.CreatedDate,
+                        Rating = photo.Rating,
+                        PhotoBookId = targetPhotoBook.Id // This copy belongs to the PhotoBook
+                    };
+
+                    await _databaseService.AddPhotoAsync(photoCopy);
+                    
+                    // Copy labels from original photo to the copy
+                    if (photo.Labels.Count > 0)
+                    {
+                        foreach (var label in photo.Labels)
+                        {
+                            await _databaseService.AddLabelAsync(photoCopy.Id, label);
+                        }
+                    }
+                    
+                    addedCount++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Could not add {photo.FileName}: {ex.Message}");
+                }
+            }
+
+            // Update PhotoBook UpdatedDate in database (this is important for sorting)
+            await _databaseService.UpdatePhotoBookAsync(targetPhotoBook);
+
+            // Clear selection but keep photos in main gallery
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                foreach (var photo in photosToExport)
+                {
+                    photo.IsSelected = false;
+                }
+
+                _selectedPhotos.Clear();
+                SelectedPhotosCount = 0;
+                IsSelectionMode = false;
+                SelectButtonText = "Select";
+                SelectionActionsButtonVisible = false;
+            });
+
+            // Show success message
+            if (errors.Count == 0)
+            {
+                await ShowAlertAsync("Success", $"Successfully exported {addedCount} photo(s) to '{targetPhotoBook.Name}'.");
+            }
+            else
+            {
+                var message = $"Exported {addedCount} photo(s) to '{targetPhotoBook.Name}'.";
+                if (errors.Count <= 5)
+                {
+                    message += $"\n\nErrors:\n{string.Join("\n", errors)}";
+                }
+                else
+                {
+                    message += $"\n\nErrors:\n{string.Join("\n", errors.Take(5))}\n... and {errors.Count - 5} more.";
+                }
+                await ShowAlertAsync("Partially Complete", message);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error exporting photos to PhotoBook: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not export photos: {ex.Message}");
         }
     }
 
