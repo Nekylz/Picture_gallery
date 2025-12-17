@@ -382,9 +382,10 @@ public partial class PhotoBookPage : ContentPage
 
     private void MasonryGrid_SizeChanged(object? sender, EventArgs e)
     {
-        if (sender is Grid grid && ViewModel != null && !_isRebuildingLayout)
+        if (sender is Grid grid && ViewModel != null && !_isRebuildingLayout && !_isRefreshingCarousel)
         {
-            // Debounce size changed events as they fire frequently
+            // Debounce size changed events as they fire frequently, especially when adding multiple photos
+            // Increased delay to prevent cascading rebuilds on Windows
             _rebuildDebounceTimer?.Dispose();
             _rebuildDebounceTimer = new System.Threading.Timer(_ =>
             {
@@ -392,12 +393,13 @@ public partial class PhotoBookPage : ContentPage
                 _rebuildDebounceTimer = null;
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    if (!_isRebuildingLayout)
+                    // Double check - rebuild might have started while timer was waiting
+                    if (!_isRebuildingLayout && !_isRefreshingCarousel)
                     {
                         RebuildMasonryLayoutForGrid(grid);
                     }
                 });
-            }, null, 100, Timeout.Infinite);
+            }, null, 500, Timeout.Infinite); // Increased from 100ms to 500ms to prevent cascading rebuilds
         }
     }
 
@@ -444,11 +446,21 @@ public partial class PhotoBookPage : ContentPage
     {
         System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] ========== START ==========");
         
+        // Prevent multiple simultaneous rebuilds - set flag immediately to block SizeChanged events
+        if (_isRebuildingLayout)
+        {
+            System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Rebuild already in progress, skipping");
+            return;
+        }
+        
         if (ViewModel?.PhotoBook == null)
         {
             System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] ViewModel or PhotoBook is null");
-                return;
+            return;
         }
+
+        // Set rebuild flag immediately to prevent SizeChanged events from triggering cascading rebuilds
+        _isRebuildingLayout = true;
 
         // PhotoCarousel removed - all photos on one page
 
@@ -467,19 +479,28 @@ public partial class PhotoBookPage : ContentPage
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    column0 = masonryGrid.FindByName<VerticalStackLayout>("Column0");
-                    column1 = masonryGrid.FindByName<VerticalStackLayout>("Column1");
-                    column2 = masonryGrid.FindByName<VerticalStackLayout>("Column2");
-                    
-                    if (column0 == null || column1 == null || column2 == null)
+                    try
                     {
-                        System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns still not found after retry - Column0: {0}, Column1: {1}, Column2: {2}", 
-                            column0 != null, column1 != null, column2 != null);
-                        return;
+                        column0 = masonryGrid.FindByName<VerticalStackLayout>("Column0");
+                        column1 = masonryGrid.FindByName<VerticalStackLayout>("Column1");
+                        column2 = masonryGrid.FindByName<VerticalStackLayout>("Column2");
+                        
+                        if (column0 == null || column1 == null || column2 == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns still not found after retry - Column0: {0}, Column1: {1}, Column2: {2}", 
+                                column0 != null, column1 != null, column2 != null);
+                            _isRebuildingLayout = false;
+                            return;
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns found on retry, building layout");
+                        BuildMasonryLayoutWithColumns(masonryGrid, column0, column1, column2);
                     }
-                    
-                    System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns found on retry, building layout");
-                    BuildMasonryLayoutWithColumns(masonryGrid, column0, column1, column2);
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayoutForGrid] Error during retry: {ex.Message}");
+                        _isRebuildingLayout = false;
+                    }
                 });
             });
             return;
@@ -523,12 +544,17 @@ public partial class PhotoBookPage : ContentPage
 
         System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayoutForGridWithColumns] Building layout for {currentPage.Photos.Count} photos");
 
+        // Flag is already set in RebuildMasonryLayoutForGrid, but ensure it's set here too for direct calls
+        _isRebuildingLayout = true;
+
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            // Clear all columns
-            column0.Children.Clear();
-            column1.Children.Clear();
-            column2.Children.Clear();
+            try
+            {
+                // Clear all columns
+                column0.Children.Clear();
+                column1.Children.Clear();
+                column2.Children.Clear();
 
             // Determine number of columns based on available width
             int numberOfColumns = GetNumberOfColumns(masonryGrid);
@@ -595,6 +621,12 @@ public partial class PhotoBookPage : ContentPage
             }
             
             System.Diagnostics.Debug.WriteLine($"[BuildMasonryLayout] ========== COMPLETE - Added {photoIndex} photos ==========");
+            }
+            finally
+            {
+                // Always reset the rebuild flag, even if there was an error
+                _isRebuildingLayout = false;
+            }
         });
     }
 
