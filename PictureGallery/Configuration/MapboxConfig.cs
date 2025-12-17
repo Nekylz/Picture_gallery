@@ -37,9 +37,10 @@ public static class MapboxConfig
     
     /// <summary>
     /// Checks if a valid API key is configured
+    /// Validates that the key is not empty, has minimum length, and starts with "pk." (Mapbox public token)
     /// </summary>
     public static bool HasValidApiKey => !string.IsNullOrWhiteSpace(ApiKey) && 
-                                         ApiKey != DefaultMapboxApiKey &&
-                                         ApiKey.Length > 10;
+                                         ApiKey.Length > 10 &&
+                                         ApiKey.StartsWith("pk.", StringComparison.Ordinal);
 }
 
