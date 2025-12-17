@@ -119,6 +119,7 @@ public partial class GalleryViewModel : BaseViewModel
         OpenPhotoBookCommand = new AsyncRelayCommand(OpenPhotoBookAsync);
         ImportPhotoCommand = new AsyncRelayCommand(UploadMediaAsync);
         LabelDropdownCommand = new AsyncRelayCommand(LabelDropdownAsync);
+        RemoveLabelSidebarCommand = new AsyncRelayCommand(RemoveLabelSidebarAsync);
 
         // Load photos on initialization
         _ = LoadPhotosFromDatabaseAsync();
@@ -141,6 +142,7 @@ public partial class GalleryViewModel : BaseViewModel
     public ICommand OpenPhotoBookCommand { get; }
     public ICommand ImportPhotoCommand { get; }
     public ICommand LabelDropdownCommand { get; }
+    public ICommand RemoveLabelSidebarCommand { get; }
 
     #endregion
 
@@ -621,6 +623,48 @@ public partial class GalleryViewModel : BaseViewModel
         LabelEntryText = string.Empty; // Clear entry after adding
     }
 
+    /// <summary>
+    /// Deletes a label from all photos and the database.
+    /// </summary>
+    /// <param name="label"></param>
+    /// <returns></returns>
+    private async Task DeleteLabelAsync(string? label)
+    {
+        // Makes sure the label gets removed from all photos and the database
+
+        if (string.IsNullOrWhiteSpace(label))
+            return;
+        try
+            {
+            bool confirm = await Application.Current?.MainPage?.DisplayAlert(
+                "Confirm Delete",
+                $"Are you sure you want to delete the label '{label}' from all photos and the database?",
+                "Yes",
+                "No");
+            if (!confirm)
+                return;
+            await _databaseService.DeleteLabelFromAllPhotosAsync(label);
+            
+            // Update labels in all photos
+            foreach (var photo in _allPhotos)
+            {
+                if (photo.Labels.Contains(label))
+                {
+                    photo.Labels.Remove(label);
+                    await _databaseService.RemoveLabelAsync(photo.Id, label);
+                }
+            }
+            UpdateAvailableLabels();
+            ApplyFiltersAndSort();
+            await ShowAlertAsync("Label Deleted", $"The label '{label}' has been deleted from all photos.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error deleting label: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not delete label: {ex.Message}");
+        }
+    }
+
     public async Task AddLabelFromTextAsync(string? labelText)
     {
         if (CurrentPhoto == null)
@@ -745,6 +789,35 @@ public partial class GalleryViewModel : BaseViewModel
         {
             await AddLabelFromTextAsync(selectedLabel);
         }
+    }
+
+    /// <summary>
+    /// Shows an action sheet to select and remove a label from all photos.
+    /// </summary>
+    /// <returns></returns>
+    private async Task RemoveLabelSidebarAsync()
+    {
+
+        await LoadAvailableLabelsAsync();
+
+        // Display all labels in an action sheet for selection
+        if (AvailableLabels.Count == 0)
+        {
+            await ShowAlertAsync("No Labels", "No labels are available yet. Please add a label via the text box first.");
+            return;
+        }
+        var options = AvailableLabels.ToList();
+        var selectedLabel = await Application.Current?.MainPage?.DisplayActionSheet(
+            "All labels (Select to remove from photos and database)",
+            "Close",
+            null,
+            options.ToArray());
+
+        if (selectedLabel != null && selectedLabel != "Close" && !string.IsNullOrWhiteSpace(selectedLabel))
+        {
+            await DeleteLabelAsync(selectedLabel);
+        }
+
     }
 
     private async Task LoadAvailableLabelsAsync()
