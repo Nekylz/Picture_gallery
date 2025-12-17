@@ -1,7 +1,7 @@
 using Microsoft.Maui.Controls;
 using PictureGallery.ViewModels;
 using PictureGallery.Configuration;
-#if ANDROID || IOS || MACCATALYST
+#if ANDROID || IOS
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
 #endif
@@ -27,14 +27,14 @@ public partial class Gallery : ContentPage
     
     private void OnMapLocationUpdateRequested(double lat, double lon)
     {
-#if WINDOWS
+#if WINDOWS || MACCATALYST
         UpdateWebMapLocation(lat, lon);
-#elif ANDROID || IOS || MACCATALYST
+#elif ANDROID || IOS
         UpdateNativeMapLocation(lat, lon);
 #endif
     }
     
-#if ANDROID || IOS || MACCATALYST
+#if ANDROID || IOS
     private void UpdateNativeMapLocation(double lat, double lon)
     {
         if (_locationMap != null)
@@ -51,8 +51,8 @@ public partial class Gallery : ContentPage
         if (MapBorder == null || MapPlaceholderLabel == null)
             return;
             
-#if WINDOWS
-        // Windows: Use WebView with Leaflet/OpenStreetMap (no API key required)
+#if WINDOWS || MACCATALYST
+        // Windows and macOS: Use WebView with Mapbox
         try
         {
             _webViewMap = new WebView
@@ -93,8 +93,8 @@ public partial class Gallery : ContentPage
             MapPlaceholderLabel.Text = "Map initialization failed";
             MapPlaceholderLabel.IsVisible = true;
         }
-#elif ANDROID || IOS || MACCATALYST
-        // Create Map control for supported platforms
+#elif ANDROID || IOS
+        // Android and iOS: Use native MAUI Maps
         try
         {
             _locationMap = new Microsoft.Maui.Controls.Maps.Map
@@ -120,7 +120,7 @@ public partial class Gallery : ContentPage
 #endif
     }
     
-#if WINDOWS
+#if WINDOWS || MACCATALYST
     private string GetMapboxMapHtml(double lat, double lon)
     {
         // Default to center of Netherlands if no coordinates provided
