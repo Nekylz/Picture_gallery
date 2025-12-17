@@ -2,6 +2,7 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:viewmodels="clr-namespace:PictureGallery.ViewModels"
+             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
              x:Class="PictureGallery.Views.Gallery"
              Title="Gallery">
     <Grid x:Name="MainGrid" 
@@ -534,6 +535,27 @@
                                    HorizontalOptions="Center"
                                    IsVisible="{Binding CurrentPhoto.Labels, Converter={StaticResource InverseCollectionCountToBoolConverter}}" />
                         </Grid>
+
+                        <!-- LOCATION MAP SECTION -->
+                        <Border Margin="0,20,0,0"
+                                BackgroundColor="White"
+                                StrokeThickness="1"
+                                Stroke="#E0E0E0"
+                                Padding="0"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Start"
+                                WidthRequest="500"
+                                HeightRequest="300">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <maps:Map x:Name="LocationMap"
+                                      MapType="Street"
+                                      IsEnabled="True"
+                                      HorizontalOptions="Fill"
+                                      VerticalOptions="Fill" />
+                        </Border>
+
                     </VerticalStackLayout>
                 </ScrollView>
 
