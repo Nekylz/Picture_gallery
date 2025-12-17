@@ -34,7 +34,8 @@ public partial class Gallery : ContentPage
                 Source = new HtmlWebViewSource
                 {
                     Html = GetLeafletMapHtml(0, 0) // Default to world view
-                }
+                },
+                BackgroundColor = Colors.Transparent
             };
             
             MapBorder.Content = _webViewMap;
@@ -85,25 +86,85 @@ public partial class Gallery : ContentPage
         
         var htmlContent = $@"
 <!DOCTYPE html>
-<html>
+<html style=""margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;"">
 <head>
     <meta charset='utf-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>
     <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />
     <style>
-        body {{ margin: 0; padding: 0; }}
-        .leaflet-container {{ height: 100vh; width: 100vw; }}
+        * {{
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }}
+        html, body {{
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }}
+        [id=""mapdiv""] {{
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+        }}
+        .leaflet-container {{
+            width: 100%;
+            height: 100%;
+            background: #f4f4f4;
+        }}
     </style>
 </head>
 <body>
     <div id=""mapdiv""></div>
     <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
     <script>
-        var map = L.map('mapdiv').setView([{lat}, {lon}], 13);
+        var map = L.map('mapdiv', {{
+            zoomControl: true,
+            scrollWheelZoom: true,
+            doubleClickZoom: true,
+            boxZoom: true,
+            dragging: true,
+            touchZoom: true
+        }}).setView([{lat}, {lon}], 13);
+        
         L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
             attribution: '© OpenStreetMap contributors',
             maxZoom: 19
         }}).addTo(map);
+        
+        // Prevent any page scrolling - map handles all interactions
+        // Prevent all page scrolling - only map should be scrollable
+        document.body.style.overflow = 'hidden';
+        document.documentElement.style.overflow = 'hidden';
+        
+        // Disable touch scroll on document (map handles its own)
+        document.addEventListener('touchmove', function(e) {{
+            // Only prevent if not on map
+            if (!e.target.closest('[id=""mapdiv""]') && !e.target.closest('.leaflet-container')) {{
+                e.preventDefault();
+            }}
+        }}, {{ passive: false }});
+        
+        // Ensure map fills entire viewport and recalculates on resize
+        window.addEventListener('resize', function() {{
+            setTimeout(function() {{
+                map.invalidateSize();
+            }}, 100);
+        }});
+        
+        // Force map to recalculate size after full load
+        window.addEventListener('load', function() {{
+            setTimeout(function() {{
+                map.invalidateSize();
+            }}, 500);
+        }});
     </script>
 </body>
 </html>";
