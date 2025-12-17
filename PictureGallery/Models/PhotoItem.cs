@@ -2,6 +2,8 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using PictureGallery.ViewModels;
+using PictureGallery.Views;
 using SQLite;
 
 namespace PictureGallery.Models;
@@ -29,7 +31,11 @@ public class PhotoItem : INotifyPropertyChanged
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
-    
+
+    public string ExifDateText { get; set; } = string.Empty;
+
+    public string ImportedDateText { get; set; } = string.Empty;
+
     /// <summary>
     /// PhotoBookId to indicate if photo belongs only to a PhotoBook (not in main gallery)
     /// If null or 0, photo is in main gallery
@@ -145,5 +151,5 @@ public class PhotoItem : INotifyPropertyChanged
     {
         PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
-    
+
 }

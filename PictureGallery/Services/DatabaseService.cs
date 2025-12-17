@@ -81,6 +81,8 @@ public class DatabaseService
     /// </summary>
     public async Task<List<PhotoItem>> GetAllPhotosAsync()
     {
+        var importedDate = "";
+        var createdDate = "";
         var db = await GetDatabaseAsync();
         // Only get photos that are NOT in a PhotoBook (PhotoBookId is null or 0)
         var photos = await db.Table<PhotoItem>()
@@ -98,6 +100,8 @@ public class DatabaseService
             // Stel alleen ImageSource in als bestand bestaat
             if (photo.FileExists)
             {
+                createdDate = photo.CreatedDateDisplay;
+                importedDate = photo.ImportedDateText;
                 photo.InitializeImageSource();
                 System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
             }
