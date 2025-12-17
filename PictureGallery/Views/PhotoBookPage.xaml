@@ -8,29 +8,55 @@
           BackgroundColor="#F3E1DD">
 
         <!-- Linker menu -->
-        <VerticalStackLayout Grid.Column="0"
-                             Padding="20"
-                             Spacing="10">
+        <Grid Grid.Column="0"
+              Padding="20"
+              RowDefinitions="*,Auto">
 
-            <!-- Voeg foto toe -->
-            <Button Text="Voeg foto toe"
-                    Clicked="AddPhoto_Clicked" />
-            
-            <!-- Converteer naar PDF -->
-            <Button x:Name="StartPdfModeButton"
-                    Text="Converteer naar PDF"
-                    BackgroundColor="#4CAF50"
-                    TextColor="White"
-                    Clicked="StartPdfMode_Clicked" />
+            <!-- BOVEN: knoppen -->
+            <VerticalStackLayout Grid.Row="0"
+                                 Spacing="10">
 
-            <!-- Verwijder foto's -->
-            <Button x:Name="StartDeleteModeButton"
-                    Text="Verwijder foto's"
-                    BackgroundColor="#D9534F"
-                    TextColor="White"
-                    Clicked="StartDeleteMode_Clicked" />
-            
-        </VerticalStackLayout>
+                <Button Text="Voeg foto toe"
+                        Clicked="AddPhoto_Clicked" />
+
+                <Button x:Name="StartPdfModeButton"
+                        Text="Converteer naar PDF"
+                        BackgroundColor="#4CAF50"
+                        TextColor="White"
+                        Clicked="StartPdfMode_Clicked" />
+
+                <Button x:Name="StartDeleteModeButton"
+                        Text="Verwijder foto's"
+                        BackgroundColor="#D9534F"
+                        TextColor="White"
+                        Clicked="StartDeleteMode_Clicked" />
+
+            </VerticalStackLayout>
+
+            <!-- Onderaan upgrade / plan -->
+            <Frame x:Name="PlanFrame"
+                   Grid.Row="1"
+                   Padding="14"
+                   CornerRadius="12"
+                   BackgroundColor="#1E1E1E">
+
+                <VerticalStackLayout Spacing="4">
+
+                    <Label x:Name="PlanTitle"
+                           Text="Upgrade"
+                           FontSize="16"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+
+                    <Label x:Name="PlanSubtitle"
+                           Text="Current plan: Basic"
+                           FontSize="12"
+                           TextColor="#CCCCCC" />
+
+                </VerticalStackLayout>
+            </Frame>
+
+        </Grid>
 
         <!-- Rechter gedeelte -->
         <Grid Grid.Column="1">

@@ -2,43 +2,122 @@
 using PictureGallery.Services;
 using CommunityToolkit.Maui.Storage;
 using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui.Views;
 
 namespace PictureGallery.Views;
 
 public partial class PhotoBookPage : ContentPage
 {
-    // Houdt alle pagina's en foto's bij
+    // Houdt het fotoboek en alle pagina's bij
     public PhotoBook PhotoBook { get; set; } = new();
 
     // Maximum aantal foto's per pagina
     private static readonly int MaxPhotosPerPage = 12;
-    
-    // Bepaalt welke PDF engine wordt gebruikt
-    // Bepaalt wanneer snelle PDF nodig is
-    private const int FastPdfThreshold = 8;
-    private const bool ForceFastPdf = true; // zet op false om PDFSharp te gebruiken voor test omgeving
 
+    // Aantal foto's waarna snelle PDF relevant wordt
+    private const int FastPdfThreshold = 8;
+
+    // Houdt bij of de upgrade popup deze sessie al is getoond
+    private bool _upgradePopupShownThisSession = false;
+
+    // PDF modus binding
+    public static readonly BindableProperty IsPdfModeProperty =
+        BindableProperty.Create(
+            nameof(IsPdfMode),
+            typeof(bool),
+            typeof(PhotoBookPage),
+            false);
+
+    public bool IsPdfMode
+    {
+        get => (bool)GetValue(IsPdfModeProperty);
+        set => SetValue(IsPdfModeProperty, value);
+    }
 
     public PhotoBookPage()
     {
         InitializeComponent();
         BindingContext = this;
 
+        PlanFrame.GestureRecognizers.Add(new TapGestureRecognizer
+        {
+            Command = new Command(async () => await OnPlanTappedAsync())
+        });
+
         PhotoCarousel.PositionChanged += OnPageChanged;
 
-        // Eerste pagina aanmaken bij opstart
+        ResetUpgradeForTest(); // for test om upgrade te resetten na opstarten
+
+        // Eerste pagina aanmaken
         PhotoBook.Pages.Add(new PhotoBookPageModel());
     }
 
-    /// <summary>
-    /// Handelt klik op de "Add Photo" knop af
-    /// Laat gebruiker meerdere foto's selecteren en voegt ze toe aan de laatste beschikbare pagina
-    /// </summary>
+    public PhotoBookPage(int photoBookId) : this()
+    {
+        // Kan later gebruikt worden om bestaand fotoboek te laden
+    }
+
+    protected override void OnAppearing()
+    {
+        base.OnAppearing();
+        UpdatePlanBar();
+    }
+
+    // Past de tekst van de plan balk aan
+    private void UpdatePlanBar()
+    {
+        bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+
+        if (fastUnlocked)
+        {
+            PlanTitle.Text = "Plan";
+            PlanSubtitle.Text = "Fast conversion";
+        }
+        else
+        {
+            PlanTitle.Text = "Upgrade";
+            PlanSubtitle.Text = "Current plan: Basic";
+        }
+    }
+
+    // Plan balk aanklikken
+    private async Task OnPlanTappedAsync()
+    {
+        bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+
+        if (fastUnlocked)
+        {
+            await DisplayAlert("Plan", "Fast conversion is al actief.", "OK");
+            return;
+        }
+
+        var popup = new PlanPopup();
+        var result = await this.ShowPopupAsync(popup);
+
+        if (result is string password)
+        {
+            if (password == "DEVGROUP2")
+            {
+                Preferences.Set("FastPdfUnlocked", true);
+                UpdatePlanBar();
+                
+                await DisplayAlert(
+                    "Upgrade voltooid",
+                    "Fast conversie is nu geactiveerd. Bedankt en veel plezier met het gebruik.",
+                    "OK");
+            }
+            else if (!string.IsNullOrWhiteSpace(password))
+            {
+                await DisplayAlert("Fout", "Onjuist wachtwoord.", "OK");
+            }
+        }
+    }
+
+    // Foto's toevoegen
     private async void AddPhoto_Clicked(object sender, EventArgs e)
     {
         try
         {
-            // Laat gebruiker meerdere afbeeldingen selecteren
             var results = await FilePicker.Default.PickMultipleAsync(new PickOptions
             {
                 FileTypes = FilePickerFileType.Images,
@@ -50,49 +129,19 @@ public partial class PhotoBookPage : ContentPage
 
             foreach (var result in results)
             {
-                // Alleen PNG en JPG toestaan
                 if (!IsSupportedImage(result.FileName))
                     continue;
 
-                PhotoItem? photo = null;
-
-                try
-                {
-                    // Foto inlezen en opslaan in cache
-                    photo = await CreatePhotoItemAsync(result);
-                }
-                catch (Exception photoEx)
-                {
-                    await DisplayAlert(
-                        "Corrupte foto",
-                        $"De foto '{result.FileName}' kon niet worden geladen.",
-                        "OK");
-                    continue;
-                }
-
-                if (photo == null || !photo.IsValid)
-                {
-                    await DisplayAlert(
-                        "Ongeldige foto",
-                        $"De foto '{result.FileName}' kon niet worden geladen.",
-                        "OK");
-                    continue;
-                }
-
-                // Haal laatste pagina op
+                var photo = await CreatePhotoItemAsync(result);
                 var page = PhotoBook.Pages.Last();
 
-                // Nieuwe pagina aanmaken indien vol
                 if (page.Photos.Count >= MaxPhotosPerPage)
                 {
                     page = new PhotoBookPageModel();
                     PhotoBook.Pages.Add(page);
                 }
 
-                // Foto toevoegen
                 page.Photos.Add(photo);
-
-                // Ga automatisch naar laatste pagina
                 PhotoCarousel.Position = PhotoBook.Pages.Count - 1;
             }
         }
@@ -102,153 +151,60 @@ public partial class PhotoBookPage : ContentPage
         }
     }
 
-    // Controleert of extensie toegestaan is
+    // Controleert toegestane extensies
     private bool IsSupportedImage(string fileName)
     {
-        var allowedExtensions = new[] { ".png", ".jpg", ".jpeg" };
-        var extension = Path.GetExtension(fileName);
-        return !string.IsNullOrWhiteSpace(extension) &&
-               allowedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        var allowed = new[] { ".png", ".jpg", ".jpeg" };
+        return allowed.Contains(Path.GetExtension(fileName), StringComparer.OrdinalIgnoreCase);
     }
 
-    /// <summary>
-    /// Zet FilePicker-resultaat om naar PhotoItem
-    /// Kopieert afbeelding naar cache indien nodig
-    /// </summary>
+    // Maakt PhotoItem aan en zet bestand in cache
     private async Task<PhotoItem> CreatePhotoItemAsync(FileResult result)
     {
         var filePath = result.FullPath;
 
-        // Onvolledig pad oplossen door bestand in cache op te slaan
         if (string.IsNullOrEmpty(filePath) || !File.Exists(filePath))
         {
-            try
-            {
-                await using var pickedStream = await result.OpenReadAsync();
-                filePath = Path.Combine(FileSystem.CacheDirectory, $"{Guid.NewGuid()}_{result.FileName}");
-                await using var tempFile = File.Create(filePath);
-                await pickedStream.CopyToAsync(tempFile);
-                await tempFile.FlushAsync();
-            }
-            catch (Exception ex)
-            {
-                throw new InvalidOperationException($"Kon bestand niet kopiëren: {ex.Message}", ex);
-            }
+            await using var stream = await result.OpenReadAsync();
+            filePath = Path.Combine(
+                FileSystem.CacheDirectory,
+                $"{Guid.NewGuid()}_{result.FileName}");
+
+            await using var file = File.Create(filePath);
+            await stream.CopyToAsync(file);
         }
 
-        if (!File.Exists(filePath))
-            throw new InvalidOperationException("Bestand kon niet worden aangemaakt.");
+        using var testStream = File.OpenRead(filePath);
+        var bitmap = SkiaSharp.SKBitmap.Decode(testStream);
 
-        // Bestand mag niet leeg zijn
-        var fileInfo = new FileInfo(filePath);
-        if (fileInfo.Length == 0)
-        {
-            try { File.Delete(filePath); } catch { }
-            throw new InvalidOperationException("Bestand is leeg.");
-        }
+        if (bitmap == null)
+            throw new InvalidOperationException("Ongeldige afbeelding.");
 
-        // Afbeeldingsgrootte testen via SkiaSharp
-        int width = 0, height = 0;
-
-        try
-        {
-            using var stream = File.OpenRead(filePath);
-            var bitmap = SkiaSharp.SKBitmap.Decode(stream);
-
-            if (bitmap == null)
-            {
-                try { File.Delete(filePath); } catch { }
-                throw new InvalidOperationException("Het bestand kon niet als afbeelding worden gelezen.");
-            }
-
-            if (bitmap.Width <= 0 || bitmap.Height <= 0)
-            {
-                bitmap.Dispose();
-                try { File.Delete(filePath); } catch { }
-                throw new InvalidOperationException("De afbeelding heeft geen geldige afmetingen.");
-            }
-
-            width = bitmap.Width;
-            height = bitmap.Height;
-
-            bitmap.Dispose();
-        }
-        catch (Exception ex)
-        {
-            try { File.Delete(filePath); } catch { }
-            throw new InvalidOperationException($"Kon afbeelding niet lezen: {ex.Message}", ex);
-        }
-
-        // ImageSource maken voor weergave
-        ImageSource? imageSource = null;
-
-        try
-        {
-            imageSource = ImageSource.FromFile(filePath);
-        }
-        catch (Exception imgEx)
-        {
-            try { File.Delete(filePath); } catch { }
-            throw new InvalidOperationException($"Kon afbeelding niet laden voor weergave: {imgEx.Message}", imgEx);
-        }
-
-        if (imageSource == null)
-        {
-            try { File.Delete(filePath); } catch { }
-            throw new InvalidOperationException("Kon ImageSource niet aanmaken voor de afbeelding.");
-        }
-
-        //  PhotoItem teruggeven
         return new PhotoItem
         {
             FileName = result.FileName,
             FilePath = filePath,
-            Width = width,
-            Height = height,
-            ImageSource = imageSource
+            Width = bitmap.Width,
+            Height = bitmap.Height,
+            ImageSource = ImageSource.FromFile(filePath)
         };
     }
 
-    // Gaat 1 pagina vooruit
-    private void NextPage(object sender, EventArgs e)
-    {
-        if (PhotoCarousel.Position < PhotoBook.Pages.Count - 1)
-            PhotoCarousel.Position++;
-    }
-
-    // Gaat 1 pagina terug
-    private void PrevPage(object sender, EventArgs e)
-    {
-        if (PhotoCarousel.Position > 0)
-            PhotoCarousel.Position--;
-    }
-
-    // Houdt pagina indicator bij en toont navigatie pijlen
+    // Pagina indicator bijwerken
     private void OnPageChanged(object sender, PositionChangedEventArgs e)
     {
         int current = e.CurrentPosition + 1;
         int total = PhotoBook.Pages.Count;
-
         PageIndicator.Text = $"Pagina {current} van {total}";
-
-        bool singlePage = total <= 1;
-
-        PrevArrow.IsVisible = !singlePage && PhotoCarousel.Position > 0;
-        NextArrow.IsVisible = !singlePage && PhotoCarousel.Position < total - 1;
     }
 
     // Start delete modus
     private void StartDeleteMode_Clicked(object sender, EventArgs e)
     {
-        // Selectie leegmaken bij opstarten
-        foreach (var page in PhotoBook.Pages)
-        foreach (var photo in page.Photos)
-            photo.IsSelected = false;
-
         DeleteToolbar.IsVisible = true;
     }
 
-    // Stop delete modus
+    // Annuleer delete modus
     private void CancelDeleteMode_Clicked(object sender, EventArgs e)
     {
         DeleteToolbar.IsVisible = false;
@@ -258,83 +214,69 @@ public partial class PhotoBookPage : ContentPage
             photo.IsSelected = false;
     }
 
-    // Verwijdert alle geselecteerde foto's
+    // Verwijdert geselecteerde foto's
     private void DeleteSelectedPhotos_Clicked(object sender, EventArgs e)
     {
         foreach (var page in PhotoBook.Pages)
         {
             var toRemove = page.Photos.Where(p => p.IsSelected).ToList();
-
             foreach (var photo in toRemove)
                 page.Photos.Remove(photo);
-        }
-
-        // Lege pagina's verwijderen behalve de eerste
-        for (int i = PhotoBook.Pages.Count - 1; i > 0; i--)
-        {
-            if (PhotoBook.Pages[i].Photos.Count == 0)
-                PhotoBook.Pages.RemoveAt(i);
         }
 
         CancelDeleteMode_Clicked(sender, e);
     }
 
-    // Klik op foto voor selectie (alleen actief in delete of pdf modus)
+    // Foto aanklikken
     private void OnPhotoTapped(object sender, TappedEventArgs e)
     {
         if (!DeleteToolbar.IsVisible && !IsPdfMode)
             return;
 
-        if (sender is BindableObject bindable && bindable.BindingContext is PhotoItem photo)
-        {
-            // Toggle selectie
+        if (sender is BindableObject b && b.BindingContext is PhotoItem photo)
             photo.IsSelected = !photo.IsSelected;
-        }
     }
 
-    // Bindable property voor PDF modus
-    public static readonly BindableProperty IsPdfModeProperty =
-        BindableProperty.Create(nameof(IsPdfMode), typeof(bool), typeof(PhotoBookPage), false);
-
-    public bool IsPdfMode
+    // Vorige pagina
+    private void PrevPage(object sender, EventArgs e)
     {
-        get => (bool)GetValue(IsPdfModeProperty);
-        set => SetValue(IsPdfModeProperty, value);
+        if (PhotoCarousel.Position > 0)
+            PhotoCarousel.Position--;
     }
 
-    // Start PDF selectie modus
+    // Volgende pagina
+    private void NextPage(object sender, EventArgs e)
+    {
+        if (PhotoCarousel.Position < PhotoBook.Pages.Count - 1)
+            PhotoCarousel.Position++;
+    }
+
+    // PDF modus starten
     private void StartPdfMode_Clicked(object sender, EventArgs e)
     {
-        DeleteToolbar.IsVisible = false;
-
         IsPdfMode = true;
+        PdfToolbar.IsVisible = true;
 
-        // Alles standaard geselecteerd
         foreach (var page in PhotoBook.Pages)
         foreach (var photo in page.Photos)
             photo.IsSelected = true;
-
-        PdfToolbar.IsVisible = true;
     }
 
-    // Stop PDF modus
     private void CancelPdfMode_Clicked(object sender, EventArgs e)
     {
         IsPdfMode = false;
+        PdfToolbar.IsVisible = false;
 
         foreach (var page in PhotoBook.Pages)
         foreach (var photo in page.Photos)
             photo.IsSelected = false;
-
-        PdfToolbar.IsVisible = false;
     }
 
-    // Exporteert geselecteerde foto's als PDF
+    // PDF export
     private async void ExportPdf_Clicked(object sender, EventArgs e)
     {
         try
         {
-            // Alle geselecteerde foto's verzamelen
             var selectedPhotos = PhotoBook.Pages
                 .SelectMany(p => p.Photos)
                 .Where(p => p.IsSelected)
@@ -343,181 +285,129 @@ public partial class PhotoBookPage : ContentPage
 
             if (selectedPhotos.Length == 0)
             {
-                await DisplayAlert("Geen selectie", "Selecteer minstens één foto.", "OK");
+                await DisplayAlert("Geen selectie", "Selecteer foto's.", "OK");
                 return;
             }
-            
 
-            // Laat gebruiker folder kiezen
-            var folderResult = await FolderPicker.Default.PickAsync(default);
-            
-            if (!folderResult.IsSuccessful)
+            var folder = await FolderPicker.Default.PickAsync(default);
+            if (!folder.IsSuccessful)
                 return;
 
-            // Maak bestandsnaam met tijdstempel
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string pdfPath = Path.Combine(folderResult.Folder.Path, $"Fotoboek_{timestamp}.pdf");
+            string pdfPath = Path.Combine(
+                folder.Folder.Path,
+                $"Fotoboek_{DateTime.Now:yyyyMMdd_HHmmss}.pdf");
 
-            // Toon progress indicator
             ProgressFrame.IsVisible = true;
             PdfProgressBar.Progress = 0;
             ProgressLabel.Text = $"0% (0 van {selectedPhotos.Length} foto's)";
-            
-            // Forceer UI update
-            await Task.Delay(100);
 
-            // Bepaalt of snelle PDF conversie nodig is
-            //bool useFastPdf = selectedPhotos.Length > FastPdfThreshold; remove comments to have normal function again by 8 pictures skiasharp
-           // for test using skiasharp  
-            bool useFastPdf =
-                ForceFastPdf ||
-                selectedPhotos.Length > FastPdfThreshold;
+            bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+            bool exceedsLimit = selectedPhotos.Length > FastPdfThreshold;
 
-            // Controleer of snelle PDF is ontgrendeld (Na gesperk met PO)
-            //bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+            if (exceedsLimit && !fastUnlocked && !_upgradePopupShownThisSession)
+            {
+                _upgradePopupShownThisSession = true;
 
-            // Gebruik snelle PDF als:
-            // gebruiker upgrade heeft
-            // Of meer dan 8 foto's
-            //bool useFastPdf =
-                //fastUnlocked ||
-                //selectedPhotos.Length > FastPdfThreshold;
+                bool upgrade = await DisplayAlert(
+                    "Langzame conversie",
+                    "Upgrade voor snelle PDF conversie?",
+                    "Upgrade",
+                    "Doorgaan");
 
-
-                // PDF genereren (gratis of snel)
-                if (useFastPdf)
+                if (upgrade)
                 {
-                    int total = selectedPhotos.Length;
+                    var popup = new PlanPopup();
+                    var result = await this.ShowPopupAsync(popup);
 
-                    await Task.Run(() =>
+                    if (result is string password && password == "DEVGROUP2")
                     {
-                        SkiaSharpPdfService.ImagesToPdf(
-                            selectedPhotos,
-                            pdfPath,
-                            (processed, totalImages) =>
-                            {
-                                double progress = (double)processed / totalImages;
-
-                                MainThread.BeginInvokeOnMainThread(() =>
-                                {
-                                    PdfProgressBar.Progress = progress;
-                                    ProgressLabel.Text =
-                                        $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
-                                });
-                            });
-                    });
+                        Preferences.Set("FastPdfUnlocked", true);
+                        fastUnlocked = true;
+                        UpdatePlanBar();
+                    }
                 }
-                else
-                {
-                    // Standaard PDF conversie (PdfSharp)
-                    await GeneratePdfWithProgress(selectedPhotos, pdfPath);
-                }
-            
-            // Verberg progress
-            ProgressFrame.IsVisible = false;
-
-            // Vraag of gebruiker wil delen
-            bool share = await DisplayAlert(
-                "Succes", 
-                $"PDF opgeslagen in:\n{pdfPath}\n\nWil je het bestand delen?", 
-                "Delen", 
-                "Sluiten");
-
-            if (share)
-            {
-                await Share.Default.RequestAsync(new ShareFileRequest
-                {
-                    Title = "Deel Fotoboek PDF",
-                    File = new ShareFile(pdfPath)
-                });
             }
+
+            bool useFastPdf = fastUnlocked && exceedsLimit;
+
+            if (useFastPdf)
+                await GenerateFastPdfWithProgress(selectedPhotos, pdfPath);
             else
-            {
-                // Open PDF als gebruiker niet wil delen
-                await Launcher.OpenAsync(new OpenFileRequest
-                {
-                    File = new ReadOnlyFile(pdfPath)
-                });
-            }
+                await GeneratePdfWithProgress(selectedPhotos, pdfPath);
+
+            await DisplayAlert("Succes", $"PDF opgeslagen:\n{pdfPath}", "OK");
         }
         catch (Exception ex)
         {
-            ProgressFrame.IsVisible = false;
             await DisplayAlert("Fout", ex.Message, "OK");
         }
         finally
         {
-            // Modus uitzetten en selectie leegmaken
-            IsPdfMode = false;
-            PdfToolbar.IsVisible = false;
-
-            foreach (var page in PhotoBook.Pages)
-            foreach (var photo in page.Photos)
-                photo.IsSelected = false;
+            ProgressFrame.IsVisible = false;
+            CancelPdfMode_Clicked(sender, e);
         }
     }
 
-    // Genereert PDF met progress updates (geoptimaliseerd)
+    // Snelle PDF conversie met progress
+    private async Task GenerateFastPdfWithProgress(string[] images, string outputPath)
+    {
+        await Task.Run(() =>
+        {
+            SkiaSharpPdfService.ImagesToPdf(
+                images,
+                outputPath,
+                (processed, total) =>
+                {
+                    double progress = (double)processed / total;
+
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        PdfProgressBar.Progress = progress;
+                        ProgressLabel.Text =
+                            $"{(int)(progress * 100)}% ({processed} van {total} foto's)";
+                    });
+                });
+        });
+    }
+
+    // Langzame PDF conversie
     private async Task GeneratePdfWithProgress(string[] images, string outputPath)
     {
-        int totalImages = images.Length;
-        int processed = 0;
-
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            PdfProgressBar.Progress = 0;
-            ProgressLabel.Text = $"0% (0 van {totalImages} foto's)";
-        });
-
-        await Task.Delay(50);
-
-        // Doe de zware PDF conversie op een background thread
-        await Task.Run(async () =>
+        await Task.Run(() =>
         {
             var doc = new PdfSharpCore.Pdf.PdfDocument();
 
+            int total = images.Length;
+            int processed = 0;
+
             foreach (var imgPath in images)
             {
-                if (!File.Exists(imgPath))
-                {
-                    processed++;
-                    continue;
-                }
+                using var img = PdfSharpCore.Drawing.XImage.FromFile(imgPath);
+                var page = doc.AddPage();
+                page.Width = img.PixelWidth;
+                page.Height = img.PixelHeight;
 
-                using (var img = PdfSharpCore.Drawing.XImage.FromFile(imgPath))
-                {
-                    var page = doc.AddPage();
-                    page.Width = img.PixelWidth * 72 / img.HorizontalResolution;
-                    page.Height = img.PixelHeight * 72 / img.VerticalResolution;
-
-                    using (var gfx = PdfSharpCore.Drawing.XGraphics.FromPdfPage(page))
-                    {
-                        gfx.DrawImage(img, 0, 0, page.Width, page.Height);
-                    }
-                }
+                using var gfx = PdfSharpCore.Drawing.XGraphics.FromPdfPage(page);
+                gfx.DrawImage(img, 0, 0);
 
                 processed++;
-                double progress = (double)processed / totalImages;
+                double progress = (double)processed / total;
 
-                // Update UI minder vaak voor betere performance
-                if (processed % 3 == 0 || processed == totalImages)
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    await MainThread.InvokeOnMainThreadAsync(() =>
-                    {
-                        PdfProgressBar.Progress = progress;
-                        ProgressLabel.Text = $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
-                    });
-                }
+                    PdfProgressBar.Progress = progress;
+                    ProgressLabel.Text =
+                        $"{(int)(progress * 100)}% ({processed} van {total} foto's)";
+                });
             }
 
-            await MainThread.InvokeOnMainThreadAsync(() =>
-            {
-                ProgressLabel.Text = "Bestand wordt opgeslagen...";
-                PdfProgressBar.Progress = 1.0;
-            });
-
             doc.Save(outputPath);
-            doc.Close();
         });
+    }
+
+    // Reset upgrade status voor test
+    private void ResetUpgradeForTest()
+    {
+        Preferences.Remove("FastPdfUnlocked");
     }
 }
