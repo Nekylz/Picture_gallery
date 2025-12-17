@@ -131,40 +131,19 @@ public partial class PhotoBookPage : ContentPage
     {
         System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Property changed: {e.PropertyName}");
         
-        // Skip rebuilds if we're already refreshing the CarouselView
+        // Skip rebuilds if we're already refreshing - PhotosAdded/PhotosDeleted events handle refresh
         if (_isRefreshingCarousel)
         {
-            System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Skipping rebuild - CarouselView refresh in progress");
+            System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Skipping rebuild - refresh already in progress");
             return;
         }
         
-        // Debounce rebuilds to prevent multiple rapid rebuilds
-        _rebuildDebounceTimer?.Dispose();
-        
         if (e.PropertyName == nameof(PhotoBookPageViewModel.PhotoBook))
         {
-            // Don't rebuild if we just triggered a refresh via PhotosAdded/PhotosDeleted events
-            // Those events will handle the refresh themselves
-            System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] PhotoBook changed - checking if refresh is already in progress");
-            
-            // Only rebuild if we're not already refreshing
-            _rebuildDebounceTimer = new System.Threading.Timer(_ =>
-            {
-                _rebuildDebounceTimer?.Dispose();
-                _rebuildDebounceTimer = null;
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (!_isRebuildingLayout && !_isRefreshingCarousel)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] Rebuilding masonry layout after PhotoBook change");
-                        RebuildCurrentPageLayoutDebounced();
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] Skipping rebuild - refresh or rebuild already in progress");
-                    }
-                });
-            }, null, 400, Timeout.Infinite);
+            // PhotosAdded/PhotosDeleted events will trigger ForceCarouselViewRefresh
+            // which handles the rebuild with proper debouncing
+            // So we skip PropertyChanged rebuilds to prevent duplicate rebuilds and flickering
+            System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] PhotoBook changed - PhotosAdded/PhotosDeleted events will handle refresh");
         }
         else if (e.PropertyName == nameof(PhotoBookPageViewModel.IsDeleteMode) ||
                  e.PropertyName == nameof(PhotoBookPageViewModel.IsPdfMode))

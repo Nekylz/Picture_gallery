@@ -211,6 +211,9 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
             IsBusy = true;
 
+            // Batch all photos first - collect them before updating UI
+            var newPhotos = new List<PhotoItem>();
+
             foreach (var result in results)
             {
                 if (!IsSupportedImage(result.FileName)) continue;
@@ -233,42 +236,61 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                 try
                 {
                     await _databaseService.AddPhotoAsync(photo);
+                    newPhotos.Add(photo);
                 }
                 catch (Exception ex)
                 {
                     await ShowAlertAsync("Error", $"Could not save photo: {ex.Message}");
                     continue;
                 }
+            }
 
-                await MainThread.InvokeOnMainThreadAsync(() =>
+            if (newPhotos.Count == 0)
+            {
+                IsBusy = false;
+                return;
+            }
+
+            // Now add all photos to UI in a single batch update on main thread
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                // Ensure we have at least one page
+                if (PhotoBook.Pages.Count == 0)
                 {
-                    // Ensure we have at least one page
-                    if (PhotoBook.Pages.Count == 0)
-                    {
-                        PhotoBook.Pages.Add(new PhotoBookPageModel());
-                    }
-                    
-                    var page = PhotoBook.Pages[0]; // Always use the first (and only) page
+                    PhotoBook.Pages.Add(new PhotoBookPageModel());
+                }
+                
+                var page = PhotoBook.Pages[0]; // Always use the first (and only) page
 
+                // Initialize ImageSource for all photos before adding
+                foreach (var photo in newPhotos)
+                {
                     if (photo.FileExists && photo.ImageSource == null)
                     {
                         photo.InitializeImageSource();
                     }
-
-                    page.Photos.Add(photo);
-
-                    if (PhotoBook.Pages[0].Photos.Count == 1 && photo.ImageSource != null)
-                    {
-                        PhotoBook.ThumbnailImage = photo.ImageSource;
-                    }
-                });
-
-                if (_photoBookId.HasValue)
-                {
-                    await _databaseService.UpdatePhotoBookAsync(PhotoBook);
                 }
+
+                // Add all photos at once
+                foreach (var photo in newPhotos)
+                {
+                    page.Photos.Add(photo);
+                }
+
+                // Update thumbnail if it's the first photo
+                if (PhotoBook.Pages[0].Photos.Count == newPhotos.Count && newPhotos[0].ImageSource != null)
+                {
+                    PhotoBook.ThumbnailImage = newPhotos[0].ImageSource;
+                }
+            });
+
+            // Update database only once after all photos are added
+            if (_photoBookId.HasValue)
+            {
+                await _databaseService.UpdatePhotoBookAsync(PhotoBook);
             }
 
+            // Single UI refresh after all photos are added - batch the PropertyChanged notification
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 UpdateUI();
@@ -302,7 +324,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                 // Trigger event to notify View that photos were added (this will trigger refresh)
                 PhotosAdded?.Invoke();
                 
-                // Then notify property change
+                // Then notify property change - only once after all updates
                 OnPropertyChanged(nameof(PhotoBook));
                 
                 System.Diagnostics.Debug.WriteLine($"[AddPhotoAsync] Photos added - Pages: {PhotoBook.Pages.Count}, Total photos: {PhotoBook.Pages.Sum(p => p.Photos.Count)}");
