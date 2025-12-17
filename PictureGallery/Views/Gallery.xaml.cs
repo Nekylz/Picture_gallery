@@ -1,5 +1,6 @@
 using Microsoft.Maui.Controls;
 using PictureGallery.ViewModels;
+using PictureGallery.Configuration;
 #if ANDROID || IOS || MACCATALYST
 using Microsoft.Maui.Controls.Maps;
 using Microsoft.Maui.Maps;
@@ -60,7 +61,7 @@ public partial class Gallery : ContentPage
                 VerticalOptions = LayoutOptions.Fill,
                 Source = new HtmlWebViewSource
                 {
-                    Html = GetLeafletMapHtml(0, 0) // Default to world view
+                    Html = GetMapboxMapHtml(0, 0) // Default to world view
                 },
                 BackgroundColor = Colors.Transparent
             };
@@ -120,7 +121,7 @@ public partial class Gallery : ContentPage
     }
     
 #if WINDOWS
-    private string GetLeafletMapHtml(double lat, double lon)
+    private string GetMapboxMapHtml(double lat, double lon)
     {
         // Default to center of Netherlands if no coordinates provided
         if (lat == 0 && lon == 0)
@@ -129,13 +130,61 @@ public partial class Gallery : ContentPage
             lon = 5.2913;
         }
         
+        var apiKey = MapboxConfig.ApiKey;
+        var hasValidKey = MapboxConfig.HasValidApiKey;
+        
+        if (!hasValidKey)
+        {
+            // Return HTML with message about API key
+            return $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <style>
+        body {{
+            margin: 0;
+            padding: 20px;
+            font-family: Arial, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            background: #f4f4f4;
+        }}
+        .message {{
+            text-align: center;
+            max-width: 400px;
+        }}
+        .message h3 {{
+            color: #333;
+            margin-bottom: 10px;
+        }}
+        .message p {{
+            color: #666;
+            line-height: 1.6;
+        }}
+    </style>
+</head>
+<body>
+    <div class='message'>
+        <h3>Map API Key Required</h3>
+        <p>To display maps, please configure your Mapbox API key in <code>MapboxConfig.cs</code> or set the <code>MAPBOX_API_KEY</code> environment variable.</p>
+        <p><a href='https://account.mapbox.com/' target='_blank' style='color: #007bff;'>Get your free API key here</a></p>
+    </div>
+</body>
+</html>";
+        }
+        
         var htmlContent = $@"
 <!DOCTYPE html>
 <html>
 <head>
     <meta charset='utf-8' />
     <meta name='viewport' content='width=device-width, initial-scale=1.0'>
-    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />
+    <link href='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css' rel='stylesheet' />
+    <script src='https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js'></script>
     <style>
         * {{
             margin: 0;
@@ -147,6 +196,7 @@ public partial class Gallery : ContentPage
             padding: 0;
             width: 100%;
             height: 100%;
+            overflow: hidden;
         }}
         [id='mapdiv'] {{
             width: 100%;
@@ -154,95 +204,60 @@ public partial class Gallery : ContentPage
             position: absolute;
             top: 0;
             left: 0;
-            z-index: 1;
         }}
-        .leaflet-container {{
+        .mapboxgl-map {{
             width: 100% !important;
             height: 100% !important;
-            background: #f4f4f4;
         }}
     </style>
 </head>
 <body>
-    <div id=""mapdiv""></div>
-    <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+    <div id='mapdiv'></div>
     <script>
         (function() {{
             var mapInitialized = false;
-            var map = null;
             
             function initMap() {{
                 if (mapInitialized) return;
                 
                 var mapDiv = document.getElementById('mapdiv');
-                if (!mapDiv) {{
+                if (!mapDiv || typeof mapboxgl === 'undefined') {{
                     setTimeout(initMap, 50);
                     return;
                 }}
                 
-                // Get container dimensions
-                var container = mapDiv.parentElement || document.body;
-                var width = container.offsetWidth || 500;
-                var height = container.offsetHeight || 300;
-                
-                if (width < 100) width = 500;
-                if (height < 100) height = 300;
-                
-                mapDiv.style.width = width + 'px';
-                mapDiv.style.height = height + 'px';
-                mapDiv.style.display = 'block';
-                
                 try {{
-                    map = L.map('mapdiv', {{
-                        zoomControl: true,
-                        scrollWheelZoom: true,
-                        doubleClickZoom: true,
-                        dragging: true
+                    mapboxgl.accessToken = '{apiKey}';
+                    
+                    var map = new mapboxgl.Map({{
+                        container: 'mapdiv',
+                        style: 'mapbox://styles/mapbox/streets-v12',
+                        center: [{lon}, {lat}],
+                        zoom: 13
                     }});
                     
-                    // Try OpenStreetMap first
-                    var osmLayer = L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
-                        attribution: '© OpenStreetMap contributors',
-                        maxZoom: 19,
-                        subdomains: ['a', 'b', 'c']
+                    // Add navigation controls
+                    map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+                    
+                    // Ensure map resizes correctly
+                    map.on('load', function() {{
+                        map.resize();
+                        console.log('Mapbox map loaded successfully');
                     }});
                     
-                    // Fallback to CartoDB if OSM fails
-                    var cartoLayer = L.tileLayer('https://{{{{s}}}}.basemaps.cartocdn.com/light_all/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}{{{{r}}}}.png', {{
-                        attribution: '© OpenStreetMap contributors © CARTO',
-                        subdomains: 'abcd',
-                        maxZoom: 20
-                    }});
-                    
-                    osmLayer.addTo(map);
-                    map.setView([{lat}, {lon}], 13);
-                    
-                    // Force size recalculation
-                    setTimeout(function() {{
-                        if (map) map.invalidateSize(true);
-                    }}, 100);
-                    
-                    setTimeout(function() {{
-                        if (map) map.invalidateSize(true);
-                    }}, 500);
-                    
-                    // Fallback if OSM tiles fail
-                    osmLayer.on('tileerror', function() {{
-                        console.log('OSM tiles failed, trying CartoDB');
-                        if (map) {{
-                            map.removeLayer(osmLayer);
-                            cartoLayer.addTo(map);
-                        }}
+                    // Handle resize
+                    window.addEventListener('resize', function() {{
+                        if (map) map.resize();
                     }});
                     
                     mapInitialized = true;
-                    console.log('Map initialized');
                 }} catch (error) {{
-                    console.error('Map init error:', error);
+                    console.error('Mapbox init error:', error);
+                    mapDiv.innerHTML = '<div style=\"padding: 20px; text-align: center;\"><h3>Map Error</h3><p>Failed to initialize map. Please check your API key.</p></div>';
                 }}
             }}
             
-            // Multiple initialization attempts
+            // Wait for Mapbox GL JS to load
             if (document.readyState === 'loading') {{
                 document.addEventListener('DOMContentLoaded', function() {{
                     setTimeout(initMap, 100);
@@ -269,7 +284,7 @@ public partial class Gallery : ContentPage
         {
             _webViewMap.Source = new HtmlWebViewSource
             {
-                Html = GetLeafletMapHtml(lat, lon)
+                Html = GetMapboxMapHtml(lat, lon)
             };
         }
     }
