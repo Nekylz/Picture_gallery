@@ -9,6 +9,7 @@ namespace PictureGallery.Views;
 public partial class Gallery : ContentPage
 {
     private Microsoft.Maui.Controls.Maps.Map? _locationMap;
+    private WebView? _webViewMap;
     
     public Gallery()
     {
@@ -23,9 +24,28 @@ public partial class Gallery : ContentPage
             return;
             
 #if WINDOWS
-        // Windows requires Bing Maps API key, so show placeholder message
-        MapPlaceholderLabel.Text = "Map not available on Windows";
-        MapPlaceholderLabel.IsVisible = true;
+        // Windows: Use WebView with Leaflet/OpenStreetMap (no API key required)
+        try
+        {
+            _webViewMap = new WebView
+            {
+                HorizontalOptions = LayoutOptions.Fill,
+                VerticalOptions = LayoutOptions.Fill,
+                Source = new HtmlWebViewSource
+                {
+                    Html = GetLeafletMapHtml(0, 0) // Default to world view
+                }
+            };
+            
+            MapBorder.Content = _webViewMap;
+            MapPlaceholderLabel.IsVisible = false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error initializing web map: {ex.Message}");
+            MapPlaceholderLabel.Text = "Map initialization failed";
+            MapPlaceholderLabel.IsVisible = true;
+        }
 #elif ANDROID || IOS || MACCATALYST
         // Create Map control for supported platforms
         try
@@ -52,6 +72,55 @@ public partial class Gallery : ContentPage
         MapPlaceholderLabel.IsVisible = true;
 #endif
     }
+    
+#if WINDOWS
+    private string GetLeafletMapHtml(double lat, double lon)
+    {
+        // Default to center of Netherlands if no coordinates provided
+        if (lat == 0 && lon == 0)
+        {
+            lat = 52.1326; // Amsterdam
+            lon = 5.2913;
+        }
+        
+        var htmlContent = $@"
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8' />
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />
+    <style>
+        body {{ margin: 0; padding: 0; }}
+        .leaflet-container {{ height: 100vh; width: 100vw; }}
+    </style>
+</head>
+<body>
+    <div id=""mapdiv""></div>
+    <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
+    <script>
+        var map = L.map('mapdiv').setView([{lat}, {lon}], 13);
+        L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
+            attribution: '© OpenStreetMap contributors',
+            maxZoom: 19
+        }}).addTo(map);
+    </script>
+</body>
+</html>";
+        return htmlContent;
+    }
+    
+    public void UpdateWebMapLocation(double lat, double lon)
+    {
+        if (_webViewMap != null)
+        {
+            _webViewMap.Source = new HtmlWebViewSource
+            {
+                Html = GetLeafletMapHtml(lat, lon)
+            };
+        }
+    }
+#endif
 
     protected override async void OnAppearing()
     {

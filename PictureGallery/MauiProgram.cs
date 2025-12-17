@@ -12,10 +12,14 @@ namespace PictureGallery
                 .UseMauiApp<App>()
                 .UseMauiCommunityToolkit();
             
-            // UseMauiMaps only on platforms that support it without API key requirement
-            // Windows requires Bing Maps API key, so we conditionally exclude it
+            // UseMauiMaps on supported platforms
+            // For Windows, we'll use WebView with Leaflet maps instead
 #if ANDROID || IOS || MACCATALYST
             builder.UseMauiMaps();
+#endif
+#if WINDOWS
+            // Windows: Maps will be handled via WebView with Leaflet
+            // No API key required for OpenStreetMap
 #endif
             
             builder.ConfigureFonts(fonts =>
