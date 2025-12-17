@@ -98,6 +98,9 @@ public partial class GalleryViewModel : BaseViewModel
 
     private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
 
+    // Event for map location updates (MVVM communication)
+    public event Action<double, double>? MapLocationUpdateRequested;
+
     public GalleryViewModel()
     {
         _databaseService = new DatabaseService();
@@ -1302,6 +1305,9 @@ public partial class GalleryViewModel : BaseViewModel
             CurrentPhotoRating = value.Rating;
             // Zorg dat labels geladen zijn voordat we CurrentPhoto zetten
             // (dit wordt al gedaan in ShowPhotoOverlayAsync, maar als extra check)
+            
+            // TODO: If photo has location data, trigger map update event
+            // MapLocationUpdateRequested?.Invoke(latitude, longitude);
         }
         else
         {

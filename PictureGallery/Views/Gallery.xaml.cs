@@ -2,6 +2,7 @@ using Microsoft.Maui.Controls;
 using PictureGallery.ViewModels;
 #if ANDROID || IOS || MACCATALYST
 using Microsoft.Maui.Controls.Maps;
+using Microsoft.Maui.Maps;
 #endif
 
 namespace PictureGallery.Views;
@@ -14,9 +15,35 @@ public partial class Gallery : ContentPage
     public Gallery()
     {
         InitializeComponent();
-        BindingContext = new GalleryViewModel();
+        var viewModel = new GalleryViewModel();
+        BindingContext = viewModel;
+        
+        // Subscribe to ViewModel events for MVVM communication
+        viewModel.MapLocationUpdateRequested += OnMapLocationUpdateRequested;
+        
         InitializeMap();
     }
+    
+    private void OnMapLocationUpdateRequested(double lat, double lon)
+    {
+#if WINDOWS
+        UpdateWebMapLocation(lat, lon);
+#elif ANDROID || IOS || MACCATALYST
+        UpdateNativeMapLocation(lat, lon);
+#endif
+    }
+    
+#if ANDROID || IOS || MACCATALYST
+    private void UpdateNativeMapLocation(double lat, double lon)
+    {
+        if (_locationMap != null)
+        {
+            var position = new Location(lat, lon);
+            _locationMap.MoveToRegion(MapSpan.FromCenterAndRadius(
+                position, Distance.FromKilometers(1)));
+        }
+    }
+#endif
     
     private void InitializeMap()
     {
@@ -113,57 +140,130 @@ public partial class Gallery : ContentPage
             position: absolute;
             top: 0;
             left: 0;
+            min-width: 100%;
+            min-height: 100%;
         }}
         .leaflet-container {{
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
             background: #f4f4f4;
+            position: relative;
         }}
     </style>
 </head>
 <body>
-    <div id=""mapdiv""></div>
+    <div id=""mapdiv"" style=""width: 100%; height: 100%;""></div>
     <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
     <script>
-        var map = L.map('mapdiv', {{
-            zoomControl: true,
-            scrollWheelZoom: true,
-            doubleClickZoom: true,
-            boxZoom: true,
-            dragging: true,
-            touchZoom: true
-        }}).setView([{lat}, {lon}], 13);
+        var map;
         
-        L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
-            attribution: '© OpenStreetMap contributors',
-            maxZoom: 19
-        }}).addTo(map);
-        
-        // Prevent any page scrolling - map handles all interactions
-        // Prevent all page scrolling - only map should be scrollable
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        
-        // Disable touch scroll on document (map handles its own)
-        document.addEventListener('touchmove', function(e) {{
-            // Only prevent if not on map
-            if (!e.target.closest('[id=""mapdiv""]') && !e.target.closest('.leaflet-container')) {{
-                e.preventDefault();
+        // Wait for DOM and ensure WebView is fully loaded
+        function initMap() {{
+            var mapDiv = document.getElementById('mapdiv');
+            if (!mapDiv) {{
+                setTimeout(initMap, 50);
+                return;
             }}
-        }}, {{ passive: false }});
-        
-        // Ensure map fills entire viewport and recalculates on resize
-        window.addEventListener('resize', function() {{
+            
+            // Get actual container dimensions - use viewport if container not ready
+            var width = window.innerWidth || 500;
+            var height = window.innerHeight || 300;
+            
+            var container = mapDiv.parentElement;
+            if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {{
+                width = container.offsetWidth;
+                height = container.offsetHeight;
+            }}
+            
+            // Ensure minimum size
+            if (width < 100) width = 500;
+            if (height < 100) height = 300;
+            
+            // Set explicit pixel dimensions for Leaflet
+            mapDiv.style.width = width + 'px';
+            mapDiv.style.height = height + 'px';
+            mapDiv.style.display = 'block';
+            mapDiv.style.position = 'absolute';
+            mapDiv.style.top = '0';
+            mapDiv.style.left = '0';
+            
+            // Small delay to ensure dimensions are applied
             setTimeout(function() {{
-                map.invalidateSize();
+                // Re-check dimensions after delay
+                if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {{
+                    width = container.offsetWidth;
+                    height = container.offsetHeight;
+                    mapDiv.style.width = width + 'px';
+                    mapDiv.style.height = height + 'px';
+                }}
+                
+                // Initialize map only after dimensions are set
+                map = L.map('mapdiv', {{
+                    zoomControl: true,
+                    scrollWheelZoom: true,
+                    doubleClickZoom: true,
+                    boxZoom: true,
+                    dragging: true,
+                    touchZoom: true,
+                    preferCanvas: false
+                }});
+                
+                // Add tile layer
+                var tileLayer = L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
+                    attribution: '© OpenStreetMap contributors',
+                    maxZoom: 19,
+                    subdomains: ['a', 'b', 'c'],
+                    tileSize: 256,
+                    zoomOffset: 0
+                }});
+                
+                tileLayer.addTo(map);
+                
+                // Set initial view
+                map.setView([{lat}, {lon}], 13);
+                
+                // Force multiple size recalculations to ensure tiles load
+                var recalculateSize = function() {{
+                    if (map) {{
+                        map.invalidateSize(true);
+                        map.setView([{lat}, {lon}], map.getZoom(), {{ animate: false }});
+                    }}
+                }};
+                
+                setTimeout(recalculateSize, 50);
+                setTimeout(recalculateSize, 200);
+                setTimeout(recalculateSize, 500);
+                setTimeout(recalculateSize, 1000);
+                
+                // Handle window resize
+                window.addEventListener('resize', function() {{
+                    var newWidth = container ? container.offsetWidth : width;
+                    var newHeight = container ? container.offsetHeight : height;
+                    if (newWidth > 0 && newHeight > 0) {{
+                        mapDiv.style.width = newWidth + 'px';
+                        mapDiv.style.height = newHeight + 'px';
+                        setTimeout(recalculateSize, 100);
+                    }}
+                }});
             }}, 100);
-        }});
+            
+            // Prevent page scrolling
+            document.body.style.overflow = 'hidden';
+            document.documentElement.style.overflow = 'hidden';
+        }}
         
-        // Force map to recalculate size after full load
+        // Initialize when page loads
+        if (document.readyState === 'loading') {{
+            document.addEventListener('DOMContentLoaded', function() {{
+                setTimeout(initMap, 200);
+            }});
+        }} else {{
+            setTimeout(initMap, 200);
+        }}
+        
+        // Also try after window load event
         window.addEventListener('load', function() {{
-            setTimeout(function() {{
-                map.invalidateSize();
-            }}, 500);
+            setTimeout(initMap, 300);
         }});
     </script>
 </body>
