@@ -65,8 +65,26 @@ public partial class Gallery : ContentPage
                 BackgroundColor = Colors.Transparent
             };
             
+            // Wait for WebView to fully load before displaying
+            _webViewMap.Navigated += (s, e) =>
+            {
+                if (e.Result == WebNavigationResult.Success)
+                {
+                    System.Diagnostics.Debug.WriteLine("[WebView Map] Navigation successful");
+                    // Small delay to ensure content is rendered
+                    Task.Delay(500).ContinueWith(_ =>
+                    {
+                        MainThread.BeginInvokeOnMainThread(() =>
+                        {
+                            MapPlaceholderLabel.IsVisible = false;
+                        });
+                    });
+                }
+            };
+            
             MapBorder.Content = _webViewMap;
-            MapPlaceholderLabel.IsVisible = false;
+            MapPlaceholderLabel.IsVisible = true;
+            MapPlaceholderLabel.Text = "Loading map...";
         }
         catch (Exception ex)
         {
@@ -113,10 +131,10 @@ public partial class Gallery : ContentPage
         
         var htmlContent = $@"
 <!DOCTYPE html>
-<html style=""margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden;"">
+<html>
 <head>
     <meta charset='utf-8' />
-    <meta name='viewport' content='width=device-width, initial-scale=1.0, user-scalable=no'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
     <link rel='stylesheet' href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css' />
     <style>
         * {{
@@ -129,142 +147,116 @@ public partial class Gallery : ContentPage
             padding: 0;
             width: 100%;
             height: 100%;
-            overflow: hidden;
-            position: fixed;
-            top: 0;
-            left: 0;
         }}
-        [id=""mapdiv""] {{
+        [id='mapdiv'] {{
             width: 100%;
             height: 100%;
             position: absolute;
             top: 0;
             left: 0;
-            min-width: 100%;
-            min-height: 100%;
+            z-index: 1;
         }}
         .leaflet-container {{
             width: 100% !important;
             height: 100% !important;
             background: #f4f4f4;
-            position: relative;
         }}
     </style>
 </head>
 <body>
-    <div id=""mapdiv"" style=""width: 100%; height: 100%;""></div>
+    <div id=""mapdiv""></div>
     <script src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'></script>
     <script>
-        var map;
-        
-        // Wait for DOM and ensure WebView is fully loaded
-        function initMap() {{
-            var mapDiv = document.getElementById('mapdiv');
-            if (!mapDiv) {{
-                setTimeout(initMap, 50);
-                return;
-            }}
+        (function() {{
+            var mapInitialized = false;
+            var map = null;
             
-            // Get actual container dimensions - use viewport if container not ready
-            var width = window.innerWidth || 500;
-            var height = window.innerHeight || 300;
-            
-            var container = mapDiv.parentElement;
-            if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {{
-                width = container.offsetWidth;
-                height = container.offsetHeight;
-            }}
-            
-            // Ensure minimum size
-            if (width < 100) width = 500;
-            if (height < 100) height = 300;
-            
-            // Set explicit pixel dimensions for Leaflet
-            mapDiv.style.width = width + 'px';
-            mapDiv.style.height = height + 'px';
-            mapDiv.style.display = 'block';
-            mapDiv.style.position = 'absolute';
-            mapDiv.style.top = '0';
-            mapDiv.style.left = '0';
-            
-            // Small delay to ensure dimensions are applied
-            setTimeout(function() {{
-                // Re-check dimensions after delay
-                if (container && container.offsetWidth > 0 && container.offsetHeight > 0) {{
-                    width = container.offsetWidth;
-                    height = container.offsetHeight;
-                    mapDiv.style.width = width + 'px';
-                    mapDiv.style.height = height + 'px';
+            function initMap() {{
+                if (mapInitialized) return;
+                
+                var mapDiv = document.getElementById('mapdiv');
+                if (!mapDiv) {{
+                    setTimeout(initMap, 50);
+                    return;
                 }}
                 
-                // Initialize map only after dimensions are set
-                map = L.map('mapdiv', {{
-                    zoomControl: true,
-                    scrollWheelZoom: true,
-                    doubleClickZoom: true,
-                    boxZoom: true,
-                    dragging: true,
-                    touchZoom: true,
-                    preferCanvas: false
-                }});
+                // Get container dimensions
+                var container = mapDiv.parentElement || document.body;
+                var width = container.offsetWidth || 500;
+                var height = container.offsetHeight || 300;
                 
-                // Add tile layer
-                var tileLayer = L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
-                    attribution: '© OpenStreetMap contributors',
-                    maxZoom: 19,
-                    subdomains: ['a', 'b', 'c'],
-                    tileSize: 256,
-                    zoomOffset: 0
-                }});
+                if (width < 100) width = 500;
+                if (height < 100) height = 300;
                 
-                tileLayer.addTo(map);
+                mapDiv.style.width = width + 'px';
+                mapDiv.style.height = height + 'px';
+                mapDiv.style.display = 'block';
                 
-                // Set initial view
-                map.setView([{lat}, {lon}], 13);
-                
-                // Force multiple size recalculations to ensure tiles load
-                var recalculateSize = function() {{
-                    if (map) {{
-                        map.invalidateSize(true);
-                        map.setView([{lat}, {lon}], map.getZoom(), {{ animate: false }});
-                    }}
-                }};
-                
-                setTimeout(recalculateSize, 50);
-                setTimeout(recalculateSize, 200);
-                setTimeout(recalculateSize, 500);
-                setTimeout(recalculateSize, 1000);
-                
-                // Handle window resize
-                window.addEventListener('resize', function() {{
-                    var newWidth = container ? container.offsetWidth : width;
-                    var newHeight = container ? container.offsetHeight : height;
-                    if (newWidth > 0 && newHeight > 0) {{
-                        mapDiv.style.width = newWidth + 'px';
-                        mapDiv.style.height = newHeight + 'px';
-                        setTimeout(recalculateSize, 100);
-                    }}
-                }});
-            }}, 100);
+                try {{
+                    map = L.map('mapdiv', {{
+                        zoomControl: true,
+                        scrollWheelZoom: true,
+                        doubleClickZoom: true,
+                        dragging: true
+                    }});
+                    
+                    // Try OpenStreetMap first
+                    var osmLayer = L.tileLayer('https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png', {{
+                        attribution: '© OpenStreetMap contributors',
+                        maxZoom: 19,
+                        subdomains: ['a', 'b', 'c']
+                    }});
+                    
+                    // Fallback to CartoDB if OSM fails
+                    var cartoLayer = L.tileLayer('https://{{{{s}}}}.basemaps.cartocdn.com/light_all/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}{{{{r}}}}.png', {{
+                        attribution: '© OpenStreetMap contributors © CARTO',
+                        subdomains: 'abcd',
+                        maxZoom: 20
+                    }});
+                    
+                    osmLayer.addTo(map);
+                    map.setView([{lat}, {lon}], 13);
+                    
+                    // Force size recalculation
+                    setTimeout(function() {{
+                        if (map) map.invalidateSize(true);
+                    }}, 100);
+                    
+                    setTimeout(function() {{
+                        if (map) map.invalidateSize(true);
+                    }}, 500);
+                    
+                    // Fallback if OSM tiles fail
+                    osmLayer.on('tileerror', function() {{
+                        console.log('OSM tiles failed, trying CartoDB');
+                        if (map) {{
+                            map.removeLayer(osmLayer);
+                            cartoLayer.addTo(map);
+                        }}
+                    }});
+                    
+                    mapInitialized = true;
+                    console.log('Map initialized');
+                }} catch (error) {{
+                    console.error('Map init error:', error);
+                }}
+            }}
             
-            // Prevent page scrolling
-            document.body.style.overflow = 'hidden';
-            document.documentElement.style.overflow = 'hidden';
-        }}
-        
-        // Initialize when page loads
-        if (document.readyState === 'loading') {{
-            document.addEventListener('DOMContentLoaded', function() {{
+            // Multiple initialization attempts
+            if (document.readyState === 'loading') {{
+                document.addEventListener('DOMContentLoaded', function() {{
+                    setTimeout(initMap, 100);
+                }});
+            }} else {{
+                setTimeout(initMap, 100);
+            }}
+            
+            window.addEventListener('load', function() {{
                 setTimeout(initMap, 200);
             }});
-        }} else {{
-            setTimeout(initMap, 200);
-        }}
-        
-        // Also try after window load event
-        window.addEventListener('load', function() {{
+            
             setTimeout(initMap, 300);
-        }});
+        }})();
     </script>
 </body>
 </html>";
