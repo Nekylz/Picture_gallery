@@ -190,24 +190,24 @@
                                                           CommandParameter="{Binding .}" />
                                 </Grid.GestureRecognizers>
                                 <Frame x:Name="PhotoBookFrame"
-                                       BackgroundColor="White"
+                                       BackgroundColor="{Binding IsSelected, Converter={StaticResource SelectionToBackgroundColorConverter}}"
                                        HasShadow="True"
                                        CornerRadius="12"
                                        Padding="0"
-                                       BorderColor="#E0E0E0">
+                                       BorderColor="{Binding IsSelected, Converter={StaticResource SelectionToBorderColorConverter}}">
                                     <VerticalStackLayout Spacing="0">
                                         <!-- THUMBNAIL IMAGE -->
                                         <Grid HeightRequest="180"
                                               BackgroundColor="#E5E5E5">
-                                            <!-- Selection Overlay -->
-                                            <Frame BackgroundColor="#40007AFF"
+                                            <!-- Selection Overlay - Enhanced visibility -->
+                                            <Frame BackgroundColor="#60007AFF"
                                                    CornerRadius="12"
                                                    Padding="0"
                                                    IsVisible="{Binding IsSelected}"
                                                    HorizontalOptions="Fill"
                                                    VerticalOptions="Fill">
                                                 <Label Text="✓"
-                                                       FontSize="48"
+                                                       FontSize="56"
                                                        TextColor="White"
                                                        FontAttributes="Bold"
                                                        HorizontalOptions="Center"
