@@ -227,12 +227,13 @@ public partial class Gallery : ContentPage
                 }}
                 
                 try {{
-                    mapboxgl.accessToken = '{apiKey}';
+                    // Set API key - already escaped in C# string interpolation
+                    mapboxgl.accessToken = ""{apiKey.Replace("\\", "\\\\").Replace("\"", "\\\"")}"";
                     
                     var map = new mapboxgl.Map({{
                         container: 'mapdiv',
                         style: 'mapbox://styles/mapbox/streets-v12',
-                        center: [{lon}, {lat}],
+                        center: [{lon.ToString(System.Globalization.CultureInfo.InvariantCulture)}, {lat.ToString(System.Globalization.CultureInfo.InvariantCulture)}],
                         zoom: 13
                     }});
                     
@@ -253,7 +254,9 @@ public partial class Gallery : ContentPage
                     mapInitialized = true;
                 }} catch (error) {{
                     console.error('Mapbox init error:', error);
-                    mapDiv.innerHTML = '<div style=\"padding: 20px; text-align: center;\"><h3>Map Error</h3><p>Failed to initialize map. Please check your API key.</p></div>';
+                    if (mapDiv) {{
+                        mapDiv.innerHTML = '<div style=""padding: 20px; text-align: center;""><h3>Map Error</h3><p>Failed to initialize map. Please check your API key.</p><p>Error: ' + (error.message || 'Unknown error') + '</p></div>';
+                    }}
                 }}
             }}
             
