@@ -1,14 +1,56 @@
 using Microsoft.Maui.Controls;
 using PictureGallery.ViewModels;
+#if ANDROID || IOS || MACCATALYST
+using Microsoft.Maui.Controls.Maps;
+#endif
 
 namespace PictureGallery.Views;
 
 public partial class Gallery : ContentPage
 {
+    private Microsoft.Maui.Controls.Maps.Map? _locationMap;
+    
     public Gallery()
     {
         InitializeComponent();
         BindingContext = new GalleryViewModel();
+        InitializeMap();
+    }
+    
+    private void InitializeMap()
+    {
+        if (MapBorder == null || MapPlaceholderLabel == null)
+            return;
+            
+#if WINDOWS
+        // Windows requires Bing Maps API key, so show placeholder message
+        MapPlaceholderLabel.Text = "Map not available on Windows";
+        MapPlaceholderLabel.IsVisible = true;
+#elif ANDROID || IOS || MACCATALYST
+        // Create Map control for supported platforms
+        try
+        {
+            _locationMap = new Microsoft.Maui.Controls.Maps.Map
+            {
+                MapType = Microsoft.Maui.Maps.MapType.Street,
+                IsEnabled = true,
+                HorizontalOptions = LayoutOptions.Fill,
+                VerticalOptions = LayoutOptions.Fill
+            };
+            
+            MapBorder.Content = _locationMap;
+            MapPlaceholderLabel.IsVisible = false;
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error initializing map: {ex.Message}");
+            MapPlaceholderLabel.Text = "Map initialization failed";
+            MapPlaceholderLabel.IsVisible = true;
+        }
+#else
+        MapPlaceholderLabel.Text = "Map not supported on this platform";
+        MapPlaceholderLabel.IsVisible = true;
+#endif
     }
 
     protected override async void OnAppearing()

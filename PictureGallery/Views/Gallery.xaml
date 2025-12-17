@@ -545,15 +545,19 @@
                                 HorizontalOptions="Fill"
                                 VerticalOptions="Start"
                                 WidthRequest="500"
-                                HeightRequest="300">
+                                HeightRequest="300"
+                                x:Name="MapBorder">
                             <Border.StrokeShape>
                                 <RoundRectangle CornerRadius="8" />
                             </Border.StrokeShape>
-                            <maps:Map x:Name="LocationMap"
-                                      MapType="Street"
-                                      IsEnabled="True"
-                                      HorizontalOptions="Fill"
-                                      VerticalOptions="Fill" />
+                            <!-- Map will be added programmatically in code-behind for supported platforms -->
+                            <Label x:Name="MapPlaceholderLabel"
+                                   Text="Map loading..."
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   TextColor="#666666"
+                                   FontSize="14"
+                                   IsVisible="False" />
                         </Border>
 
                     </VerticalStackLayout>
