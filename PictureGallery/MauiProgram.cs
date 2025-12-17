@@ -12,15 +12,7 @@ namespace PictureGallery
                 .UseMauiApp<App>()
                 .UseMauiCommunityToolkit();
             
-            // UseMauiMaps on supported platforms
-            // For Windows, we'll use WebView with Leaflet maps instead
-#if ANDROID || IOS || MACCATALYST
-            builder.UseMauiMaps();
-#endif
-#if WINDOWS
-            // Windows: Maps will be handled via WebView with Leaflet
-            // No API key required for OpenStreetMap
-#endif
+            // Maps are handled via WebView with Mapbox on Windows and macOS
             
             builder.ConfigureFonts(fonts =>
             {

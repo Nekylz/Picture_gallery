@@ -1,16 +1,11 @@
 using Microsoft.Maui.Controls;
 using PictureGallery.ViewModels;
 using PictureGallery.Configuration;
-#if ANDROID || IOS
-using Microsoft.Maui.Controls.Maps;
-using Microsoft.Maui.Maps;
-#endif
 
 namespace PictureGallery.Views;
 
 public partial class Gallery : ContentPage
 {
-    private Microsoft.Maui.Controls.Maps.Map? _locationMap;
     private WebView? _webViewMap;
     
     public Gallery()
@@ -27,31 +22,14 @@ public partial class Gallery : ContentPage
     
     private void OnMapLocationUpdateRequested(double lat, double lon)
     {
-#if WINDOWS || MACCATALYST
         UpdateWebMapLocation(lat, lon);
-#elif ANDROID || IOS
-        UpdateNativeMapLocation(lat, lon);
-#endif
     }
-    
-#if ANDROID || IOS
-    private void UpdateNativeMapLocation(double lat, double lon)
-    {
-        if (_locationMap != null)
-        {
-            var position = new Location(lat, lon);
-            _locationMap.MoveToRegion(MapSpan.FromCenterAndRadius(
-                position, Distance.FromKilometers(1)));
-        }
-    }
-#endif
     
     private void InitializeMap()
     {
         if (MapBorder == null || MapPlaceholderLabel == null)
             return;
             
-#if WINDOWS || MACCATALYST
         // Windows and macOS: Use WebView with Mapbox
         try
         {
@@ -93,34 +71,8 @@ public partial class Gallery : ContentPage
             MapPlaceholderLabel.Text = "Map initialization failed";
             MapPlaceholderLabel.IsVisible = true;
         }
-#elif ANDROID || IOS
-        // Android and iOS: Use native MAUI Maps
-        try
-        {
-            _locationMap = new Microsoft.Maui.Controls.Maps.Map
-            {
-                MapType = Microsoft.Maui.Maps.MapType.Street,
-                IsEnabled = true,
-                HorizontalOptions = LayoutOptions.Fill,
-                VerticalOptions = LayoutOptions.Fill
-            };
-            
-            MapBorder.Content = _locationMap;
-            MapPlaceholderLabel.IsVisible = false;
-        }
-        catch (Exception ex)
-        {
-            System.Diagnostics.Debug.WriteLine($"Error initializing map: {ex.Message}");
-            MapPlaceholderLabel.Text = "Map initialization failed";
-            MapPlaceholderLabel.IsVisible = true;
-        }
-#else
-        MapPlaceholderLabel.Text = "Map not supported on this platform";
-        MapPlaceholderLabel.IsVisible = true;
-#endif
     }
     
-#if WINDOWS || MACCATALYST
     private string GetMapboxMapHtml(double lat, double lon)
     {
         // Default to center of Netherlands if no coordinates provided
@@ -291,7 +243,6 @@ public partial class Gallery : ContentPage
             };
         }
     }
-#endif
 
     protected override async void OnAppearing()
     {
