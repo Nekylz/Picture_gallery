@@ -132,7 +132,7 @@ public class PhotoItem : INotifyPropertyChanged
     /// Get a display-friendly date string
     /// </summary>
     [Ignore]
-    public string CreatedDateDisplay => CreatedDate.ToString("dd MMM yyyy HH:mm");
+    public string CreatedDateDisplay => "Imported: " + CreatedDate.ToString("dd MMM yyyy HH:mm");
 
     /// <summary>
     /// Check if photo has any labels

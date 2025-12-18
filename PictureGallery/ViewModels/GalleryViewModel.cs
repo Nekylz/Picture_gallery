@@ -556,6 +556,7 @@ public partial class GalleryViewModel : BaseViewModel
                 OverlayFileSize = photo.FileSizeText;
                 CurrentPhotoRating = photo.Rating;
                 IsFullscreenOverlayVisible = true;
+                OverlayImportedDate = photo.CreatedDateDisplay;
             });
         }
         catch (Exception ex)
