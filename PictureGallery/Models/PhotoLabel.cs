@@ -16,10 +16,10 @@ public class PhotoLabel
 
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
-    // Helper methods
+    // Helper methodes
 
     /// <summary>
-    /// Check if the label has valid data
+    /// Controleert of het label geldige data heeft
     /// </summary>
     [Ignore]
     public bool IsValid => PhotoId > 0 && 
@@ -27,7 +27,7 @@ public class PhotoLabel
                           LabelText.Length <= 100;
 
     /// <summary>
-    /// Get a trimmed version of the label text
+    /// Geeft een getrimde versie van de label tekst terug
     /// </summary>
     [Ignore]
     public string TrimmedLabelText => LabelText?.Trim() ?? string.Empty;

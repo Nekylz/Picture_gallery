@@ -17,7 +17,7 @@ namespace PictureGallery.ViewModels;
 
 public partial class PhotoBookPageViewModel : BaseViewModel
 {
-    // Removed MaxPhotosPerPage - all photos on one page
+    // MaxPhotosPerPage verwijderd - alle foto's op één pagina
     private static readonly string[] AllowedExtensions = { ".png", ".jpg", ".jpeg" };
 
     private readonly DatabaseService _databaseService;
@@ -46,7 +46,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
     partial void OnCurrentPagePositionChanged(int value)
     {
-        // Removed page navigation - all photos on one page
+        // Pagina navigatie verwijderd - alle foto's op één pagina
     }
 
     public PhotoBookPageViewModel(int? photoBookId = null)
@@ -61,13 +61,13 @@ public partial class PhotoBookPageViewModel : BaseViewModel
             IsDeleteMode = true; 
             IsPdfMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
+            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
         });
         CancelDeleteModeCommand = new RelayCommand(() => 
         { 
             IsDeleteMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
+            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
         });
         DeleteSelectedPhotosCommand = new AsyncRelayCommand(DeleteSelectedPhotosAsync);
         StartPdfModeCommand = new RelayCommand(() => 
@@ -75,17 +75,17 @@ public partial class PhotoBookPageViewModel : BaseViewModel
             IsPdfMode = true; 
             IsDeleteMode = false; 
             SelectAllPhotos();
-            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
+            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
         });
         CancelPdfModeCommand = new RelayCommand(() => 
         { 
             IsPdfMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
+            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
         });
         ExportPdfCommand = new AsyncRelayCommand(ExportPdfAsync);
         PhotoTappedCommand = new RelayCommand<PhotoItem>(OnPhotoTapped);
-        // Removed NextPageCommand and PrevPageCommand - all photos on one page
+        // NextPageCommand en PrevPageCommand verwijderd - alle foto's op één pagina
     }
 
     public ICommand AddPhotoCommand { get; }
@@ -106,7 +106,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
         {
             IsBusy = true;
 
-            // Case 1: No PhotoBookId - create empty PhotoBook
+            // Geval 1: Geen PhotoBookId - maak leeg PhotoBook
             if (!_photoBookId.HasValue)
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] No PhotoBookId, creating empty PhotoBook");
@@ -121,10 +121,10 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                 return;
             }
 
-            // Case 2: Load existing PhotoBook
+            // Geval 2: Laad bestaand PhotoBook
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Loading PhotoBook with Id: {_photoBookId.Value}");
             
-            // Step 1: Load PhotoBook metadata
+            // Stap 1: Laad PhotoBook metadata
             var loadedPhotoBook = await _databaseService.GetPhotoBookByIdAsync(_photoBookId.Value);
             if (loadedPhotoBook == null)
             {
@@ -135,11 +135,11 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] PhotoBook metadata loaded: Id={loadedPhotoBook.Id}, Name={loadedPhotoBook.Name}");
 
-            // Step 2: Load photos (GetPhotosByPhotoBookIdAsync now returns ONLY photos with valid ImageSource)
+            // Stap 2: Laad foto's (GetPhotosByPhotoBookIdAsync retourneert nu ALLEEN foto's met geldige ImageSource)
             var photos = await _databaseService.GetPhotosByPhotoBookIdAsync(_photoBookId.Value);
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Received {photos.Count} photos from DatabaseService (all should have valid ImageSource)");
 
-            // Step 3: Build Pages structure on main thread
+            // Stap 3: Bouw Pages structuur op main thread
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Building Pages structure on main thread");

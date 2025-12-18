@@ -56,7 +56,7 @@ public partial class SelectPhotosFromGalleryViewModel : BaseViewModel
         {
             IsBusy = true;
             
-            // Get all photos from main gallery (not in any PhotoBook)
+            // Haal alle foto's op uit hoofdgalerij (niet in een PhotoBook)
             var galleryPhotos = await _databaseService.GetAllPhotosAsync();
 
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -125,10 +125,10 @@ public partial class SelectPhotosFromGalleryViewModel : BaseViewModel
             
             var selectedList = _selectedPhotos.ToList();
             
-            // Notify that photos were selected
+            // Notificeer dat foto's geselecteerd zijn
             PhotosSelected?.Invoke(selectedList);
 
-            // Close the page
+            // Sluit de pagina
             if (Application.Current?.MainPage != null)
             {
                 await Application.Current.MainPage.Navigation.PopModalAsync();

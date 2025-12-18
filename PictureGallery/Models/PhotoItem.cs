@@ -34,13 +34,13 @@ public class PhotoItem : INotifyPropertyChanged
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
 
     /// <summary>
-    /// PhotoBookId to indicate if photo belongs only to a PhotoBook (not in main gallery)
-    /// If null or 0, photo is in main gallery
+    /// PhotoBookId om aan te geven of foto alleen bij een PhotoBook hoort (niet in hoofdgalerij)
+    /// Als null of 0, dan staat de foto in de hoofdgalerij
     /// </summary>
     [Indexed]
     public int? PhotoBookId { get; set; }
 
-    // Runtime property - not stored in database
+    // Runtime property - niet opgeslagen in database
     private ImageSource? _imageSource;
     [Ignore]
     public ImageSource? ImageSource
@@ -56,11 +56,11 @@ public class PhotoItem : INotifyPropertyChanged
         }
     }
 
-    // Runtime property - loaded from database separately
+    // Runtime property - apart geladen uit database
     [Ignore]
     public ObservableCollection<string> Labels { get; } = new ObservableCollection<string>();
     
-    // Selection state for UI (runtime only)
+    // Selectiestatus voor UI (alleen runtime)
     private bool _isSelected;
     [Ignore]
     public bool IsSelected
@@ -76,19 +76,19 @@ public class PhotoItem : INotifyPropertyChanged
         }
     }
 
-    // Computed properties
+    // Berekende properties
     [Ignore]
-    public string DimensionsText => $"Image Dimensions: {Width} x {Height}";
+    public string DimensionsText => $"Afmetingen: {Width} x {Height}";
 
     [Ignore]
-    public string FileSizeText => $"File Size: {FileSizeMb:F1} MB";
+    public string FileSizeText => $"Bestandsgrootte: {FileSizeMb:F1} MB";
 
-    // Helper methods for database integration
+    // Helper methodes voor database integratie
 
     /// <summary>
-    /// Initialize the ImageSource from the FilePath
-    /// Validates that the file is a valid image using SkiaSharp before creating ImageSource
-    /// Also validates file permissions and accessibility
+    /// Initialiseert de ImageSource vanuit het FilePath
+    /// Valideert dat het bestand een geldige afbeelding is met SkiaSharp voordat ImageSource wordt aangemaakt
+    /// Valideert ook bestandspermissies en toegankelijkheid
     /// </summary>
     public void InitializeImageSource()
     {
@@ -104,17 +104,17 @@ public class PhotoItem : INotifyPropertyChanged
             return;
         }
 
-        // Additional validation: check if file is accessible and readable
+        // Aanvullende validatie: controleer of bestand toegankelijk en leesbaar is
         try
         {
             var fileInfo = new FileInfo(FilePath);
             if (fileInfo.Length == 0)
             {
-                System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is empty (0 bytes)");
+                System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP foto {Id} - Bestand '{FilePath}' is leeg (0 bytes)");
                 return;
             }
 
-            // Check file permissions by trying to open it
+            // Controleer bestandspermissies door te proberen het te openen
             using (var testStream = File.OpenRead(FilePath))
             {
                 if (testStream.Length == 0)
@@ -135,7 +135,7 @@ public class PhotoItem : INotifyPropertyChanged
             return;
         }
 
-        // Validate that the file is actually a valid image by trying to decode it
+        // Valideer dat het bestand daadwerkelijk een geldige afbeelding is door te proberen het te decoderen
         try
         {
             SKBitmap? bitmap = null;
@@ -147,41 +147,41 @@ public class PhotoItem : INotifyPropertyChanged
                     
                     if (bitmap == null)
                     {
-                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is not a valid image (SkiaSharp could not decode it)");
-                        return; // Don't set ImageSource if file is not a valid image
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP foto {Id} - Bestand '{FilePath}' is geen geldige afbeelding (SkiaSharp kon het niet decoderen)");
+                        return; // Zet geen ImageSource als bestand geen geldige afbeelding is
                     }
 
                     if (bitmap.Width <= 0 || bitmap.Height <= 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - Image '{FilePath}' has invalid dimensions ({bitmap.Width}x{bitmap.Height})");
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP foto {Id} - Afbeelding '{FilePath}' heeft ongeldige afmetingen ({bitmap.Width}x{bitmap.Height})");
                         bitmap.Dispose();
-                        return; // Don't set ImageSource if image has invalid dimensions
+                        return; // Zet geen ImageSource als afbeelding ongeldige afmetingen heeft
                     }
 
-                    // Verify bitmap data is valid
+                    // Verifieer dat bitmap data geldig is
                     if (bitmap.Pixels == null || bitmap.Pixels.Length == 0)
                     {
-                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - Image '{FilePath}' has no pixel data");
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP foto {Id} - Afbeelding '{FilePath}' heeft geen pixel data");
                         bitmap.Dispose();
                         return;
                     }
                 }
 
-                // Dispose bitmap before creating ImageSource
+                // Verwijder bitmap voordat ImageSource wordt aangemaakt
                 bitmap?.Dispose();
                 bitmap = null;
 
-                // File is valid, now try to create ImageSource
-                // Use a try-catch around ImageSource creation as MAUI may fail even if SkiaSharp succeeds
+                // Bestand is geldig, probeer nu ImageSource aan te maken
+                // Gebruik try-catch rond ImageSource creatie omdat MAUI kan falen zelfs als SkiaSharp slaagt
                 try
                 {
                     ImageSource = ImageSource.FromFile(FilePath);
-                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: Successfully created ImageSource for photo {Id} from '{FilePath}'");
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ImageSource succesvol aangemaakt voor foto {Id} van '{FilePath}'");
                 }
                 catch (InvalidOperationException ex)
                 {
-                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - MAUI cannot create ImageSource from '{FilePath}': {ex.Message}");
-                    // Don't set ImageSource if MAUI cannot create it
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP foto {Id} - MAUI kan geen ImageSource maken van '{FilePath}': {ex.Message}");
+                    // Zet geen ImageSource als MAUI het niet kan aanmaken
                     return;
                 }
             }
@@ -192,21 +192,21 @@ public class PhotoItem : INotifyPropertyChanged
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ERROR validating/creating ImageSource for photo {Id}: {ex.Message}");
-            // Don't throw - just log the error and don't set ImageSource
-            // This prevents the app from crashing if one image is corrupt
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: FOUT bij valideren/aanmaken ImageSource voor foto {Id}: {ex.Message}");
+            // Gooi geen exception - log alleen de fout en zet geen ImageSource
+            // Dit voorkomt dat de app crasht als één afbeelding corrupt is
             return;
         }
     }
 
     /// <summary>
-    /// Check if the file still exists on disk
+    /// Controleert of het bestand nog steeds op schijf bestaat
     /// </summary>
     [Ignore]
     public bool FileExists => !string.IsNullOrEmpty(FilePath) && File.Exists(FilePath);
 
     /// <summary>
-    /// Check if the photo has valid data
+    /// Controleert of de foto geldige data heeft
     /// </summary>
     [Ignore]
     public bool IsValid => !string.IsNullOrEmpty(FileName) && 
@@ -215,19 +215,19 @@ public class PhotoItem : INotifyPropertyChanged
                           Height > 0;
 
     /// <summary>
-    /// Get a display-friendly date string
+    /// Geeft een gebruiksvriendelijke datum string terug
     /// </summary>
     [Ignore]
-    public string CreatedDateDisplay => "Imported: " + CreatedDate.ToString("dd MMM yyyy HH:mm");
+    public string CreatedDateDisplay => "Geïmporteerd: " + CreatedDate.ToString("dd MMM yyyy HH:mm");
 
     /// <summary>
-    /// Check if photo has any labels
+    /// Controleert of de foto labels heeft
     /// </summary>
     [Ignore]
     public bool HasLabels => Labels.Count > 0;
     
     /// <summary>
-    /// Helper method for property change notification
+    /// Helper methode voor property change notificatie
     /// </summary>
     protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
     {

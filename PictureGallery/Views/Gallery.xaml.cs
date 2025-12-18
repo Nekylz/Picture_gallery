@@ -14,11 +14,11 @@ public partial class Gallery : ContentPage
         var viewModel = new GalleryViewModel();
         BindingContext = viewModel;
         
-        // Subscribe to ViewModel events for MVVM communication
+        // Abonneer op ViewModel events voor MVVM communicatie
         viewModel.MapLocationUpdateRequested += OnMapLocationUpdateRequested;
         viewModel.RequestShowCreatePhotoBookModal += OnRequestShowCreatePhotoBookModal;
 
-        // Setup modal events
+        // Stel modal events in
         CreatePhotoBookModal.OnCreate += OnPhotoBookCreated;
         CreatePhotoBookModal.OnCancel += OnPhotoBookCanceled;
 
@@ -67,7 +67,7 @@ public partial class Gallery : ContentPage
         if (MapBorder == null || MapPlaceholderLabel == null)
             return;
             
-        // Windows and macOS: Use WebView with Mapbox
+        // Windows en macOS: Gebruik WebView met Mapbox
         try
         {
             _webViewMap = new WebView
@@ -76,18 +76,18 @@ public partial class Gallery : ContentPage
                 VerticalOptions = LayoutOptions.Fill,
                 Source = new HtmlWebViewSource
                 {
-                    Html = GetMapboxMapHtml(0, 0) // Default to world view
+                    Html = GetMapboxMapHtml(0, 0) // Standaard naar wereldweergave
                 },
                 BackgroundColor = Colors.Transparent
             };
             
-            // Wait for WebView to fully load before displaying
+            // Wacht tot WebView volledig geladen is voordat we het tonen
             _webViewMap.Navigated += (s, e) =>
             {
                 if (e.Result == WebNavigationResult.Success)
                 {
                     System.Diagnostics.Debug.WriteLine("[WebView Map] Navigation successful");
-                    // Small delay to ensure content is rendered
+                    // Korte vertraging om ervoor te zorgen dat content gerenderd is
                     Task.Delay(500).ContinueWith(_ =>
                     {
                         MainThread.BeginInvokeOnMainThread(() =>
@@ -112,7 +112,7 @@ public partial class Gallery : ContentPage
     
     private string GetMapboxMapHtml(double lat, double lon)
     {
-        // Default to center of Netherlands if no coordinates provided
+        // Standaard naar centrum van Nederland als geen coördinaten gegeven zijn
         if (lat == 0 && lon == 0)
         {
             lat = 52.1326; // Amsterdam
@@ -124,7 +124,7 @@ public partial class Gallery : ContentPage
         
         if (!hasValidKey)
         {
-            // Return HTML with message about API key
+            // Retourneer HTML met bericht over API key
             return $@"
 <!DOCTYPE html>
 <html>
@@ -216,7 +216,7 @@ public partial class Gallery : ContentPage
                 }}
                 
                 try {{
-                    // Set API key - already escaped in C# string interpolation
+                    // Zet API key - al geëscapeerd in C# string interpolatie
                     mapboxgl.accessToken = ""{apiKey.Replace("\\", "\\\\").Replace("\"", "\\\"")}"";
                     
                     var map = new mapboxgl.Map({{
@@ -226,16 +226,16 @@ public partial class Gallery : ContentPage
                         zoom: 13
                     }});
                     
-                    // Add navigation controls
+                    // Voeg navigatie controls toe
                     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
                     
-                    // Ensure map resizes correctly
+                    // Zorg dat map correct resize't
                     map.on('load', function() {{
                         map.resize();
                         console.log('Mapbox map loaded successfully');
                     }});
                     
-                    // Handle resize
+                    // Behandel resize
                     window.addEventListener('resize', function() {{
                         if (map) map.resize();
                     }});
@@ -249,7 +249,7 @@ public partial class Gallery : ContentPage
                 }}
             }}
             
-            // Wait for Mapbox GL JS to load
+            // Wacht tot Mapbox GL JS geladen is
             if (document.readyState === 'loading') {{
                 document.addEventListener('DOMContentLoaded', function() {{
                     setTimeout(initMap, 100);

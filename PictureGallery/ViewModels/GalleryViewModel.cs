@@ -38,7 +38,7 @@ public partial class GalleryViewModel : BaseViewModel
     [ObservableProperty]
     private PhotoItem? currentPhoto;
 
-    // Selection mode properties
+    // Selectie mode properties
     [ObservableProperty]
     private bool isSelectionMode;
 
@@ -48,7 +48,7 @@ public partial class GalleryViewModel : BaseViewModel
     private HashSet<PhotoItem> _selectedPhotos = new();
     private bool _pendingPhotoBookCreation = false;
 
-    // Filter and sort properties
+    // Filter en sorteer properties
     [ObservableProperty]
     private string? selectedLabelFilter;
 
@@ -105,7 +105,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
 
-    // Event for map location updates (MVVM communication)
+    // Event voor map locatie updates (MVVM communicatie)
     public event Action<double, double>? MapLocationUpdateRequested;
     public event Action? RequestShowCreatePhotoBookModal;
 
@@ -114,7 +114,7 @@ public partial class GalleryViewModel : BaseViewModel
         _databaseService = new DatabaseService();
         Title = "Gallery";
 
-        // Initialize commands
+        // Initialiseer commando's
         UploadMediaCommand = new AsyncRelayCommand(UploadMediaAsync);
         PhotoTappedCommand = new AsyncRelayCommand<PhotoItem>(OnPhotoTappedAsync);
         StarClickedCommand = new AsyncRelayCommand<string>(StarClickedAsync);
@@ -132,11 +132,11 @@ public partial class GalleryViewModel : BaseViewModel
         LabelDropdownCommand = new AsyncRelayCommand(LabelDropdownAsync);
         RemoveLabelSidebarCommand = new AsyncRelayCommand(RemoveLabelSidebarAsync);
 
-        // Load photos on initialization
+        // Laad foto's bij initialisatie
         _ = LoadPhotosFromDatabaseAsync();
     }
 
-    #region Commands
+    #region Commando's
 
     public ICommand UploadMediaCommand { get; }
     public ICommand PhotoTappedCommand { get; }
@@ -157,7 +157,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Public Methods
+    #region Publieke Methodes
 
     public async Task LoadPhotosAsync()
     {
@@ -166,7 +166,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Photo Loading
+    #region Private Methodes - Foto Laden
 
     private async Task LoadPhotosFromDatabaseAsync()
     {
@@ -201,7 +201,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Photo Upload
+    #region Private Methodes - Foto Upload
 
     private async Task UploadMediaAsync()
     {
@@ -509,7 +509,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Photo Display
+    #region Private Methodes - Foto Weergave
 
     private async Task OnPhotoTappedAsync(PhotoItem? photo)
     {
@@ -583,7 +583,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Rating
+    #region Private Methodes - Waardering
 
     private async Task StarClickedAsync(string? ratingStr)
     {
@@ -615,7 +615,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Labels
+    #region Private Methodes - Labels
 
     private async Task AddLabelAsync()
     {
@@ -632,17 +632,17 @@ public partial class GalleryViewModel : BaseViewModel
         }
 
         await AddLabelFromTextAsync(LabelEntryText);
-        LabelEntryText = string.Empty; // Clear entry after adding
+        LabelEntryText = string.Empty; // Wist invoerveld na toevoegen
     }
 
     /// <summary>
-    /// Deletes a label from all photos and the database.
+    /// Verwijdert een label van alle foto's en uit de database.
     /// </summary>
-    /// <param name="label"></param>
+    /// <param name="label">Het label dat verwijderd moet worden</param>
     /// <returns></returns>
     private async Task DeleteLabelAsync(string? label)
     {
-        // Makes sure the label gets removed from all photos and the database
+        // Zorgt ervoor dat het label wordt verwijderd van alle foto's en uit de database
 
         if (string.IsNullOrWhiteSpace(label))
             return;
@@ -657,7 +657,7 @@ public partial class GalleryViewModel : BaseViewModel
                 return;
             await _databaseService.DeleteLabelFromAllPhotosAsync(label);
             
-            // Update labels in all photos
+            // Update labels in alle foto's
             foreach (var photo in _allPhotos)
             {
                 if (photo.Labels.Contains(label))
@@ -867,7 +867,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Selection
+    #region Private Methodes - Selectie
 
     private void ToggleSelectionMode()
     {
@@ -950,7 +950,7 @@ public partial class GalleryViewModel : BaseViewModel
             {
                 photo.IsSelected = false;
 
-                // Try to delete file, but continue even if it fails
+                // Probeer bestand te verwijderen, maar ga door zelfs als het faalt
                 if (File.Exists(photo.FilePath))
                 {
                     try
@@ -974,7 +974,7 @@ public partial class GalleryViewModel : BaseViewModel
                     }
                 }
 
-                // Always delete from database, even if file deletion failed
+                // Verwijder altijd uit database, zelfs als bestandsverwijdering faalde
                 try
                 {
                     await _databaseService.DeletePhotoAsync(photo);
@@ -995,7 +995,7 @@ public partial class GalleryViewModel : BaseViewModel
                 }
             }
 
-            // Show appropriate message
+            // Toon passend bericht
             if (errorCount == 0 && errors.Count == 0)
             {
                 await ShowAlertAsync("Done", $"{successCount} photo(s) deleted.");
@@ -1044,13 +1044,13 @@ public partial class GalleryViewModel : BaseViewModel
 
         try
         {
-            // Get all PhotoBooks from database
+            // Haal alle PhotoBooks uit database op
             var photoBooks = await _databaseService.GetAllPhotoBooksAsync();
 
             if (Application.Current?.MainPage == null)
                 return;
 
-            // Build action sheet options - include "Create New Photo Book" option
+            // Bouw action sheet opties - voeg "Nieuw FotoBoek Maken" optie toe
             var options = new List<string> { "Create New Photo Book" };
             if (photoBooks.Count > 0)
             {
@@ -1070,15 +1070,15 @@ public partial class GalleryViewModel : BaseViewModel
 
             if (selectedOption == "Create New Photo Book")
             {
-                // Show the create photo book modal - this will be handled by the View
-                // The View will call OnPhotoBookCreatedForExport when the modal is submitted
+                // Toon het maak foto boek modal - dit wordt afgehandeld door de View
+                // De View zal OnPhotoBookCreatedForExport aanroepen wanneer het modal wordt ingediend
                 _pendingPhotoBookCreation = true;
                 RequestShowCreatePhotoBookModal?.Invoke();
-                return; // Exit here, the export will continue when modal is submitted
+                return; // Stop hier, de export wordt voortgezet wanneer modal wordt ingediend
             }
             else
             {
-                // Find selected PhotoBook
+                // Vind geselecteerd PhotoBook
                 targetPhotoBook = photoBooks.FirstOrDefault(pb => pb.Name == selectedOption);
 
                 if (targetPhotoBook == null)
@@ -1088,7 +1088,7 @@ public partial class GalleryViewModel : BaseViewModel
                 }
             }
 
-            // Export photos to the selected PhotoBook
+            // Exporteer foto's naar het geselecteerde PhotoBook
             await ExportPhotosToPhotoBookAsync(targetPhotoBook);
         }
         catch (Exception ex)
@@ -1107,7 +1107,7 @@ public partial class GalleryViewModel : BaseViewModel
 
         try
         {
-            // Create new PhotoBook
+            // Maak nieuw PhotoBook
             var newPhotoBook = new PhotoBook
             {
                 Name = name.Trim(),
@@ -1125,7 +1125,7 @@ public partial class GalleryViewModel : BaseViewModel
                 return;
             }
 
-            // Now export photos to the newly created PhotoBook
+            // Exporteer nu foto's naar het nieuw aangemaakte PhotoBook
             await ExportPhotosToPhotoBookAsync(targetPhotoBook);
         }
         catch (Exception ex)
@@ -1138,8 +1138,8 @@ public partial class GalleryViewModel : BaseViewModel
     {
         try
         {
-            // Add photos to PhotoBook by creating copies in the database
-            // This way, original photos remain in main gallery and copies are in PhotoBook
+            // Voeg foto's toe aan PhotoBook door kopieën te maken in de database
+            // Op deze manier blijven originele foto's in hoofdgalerij en kopieën zitten in PhotoBook
             var photosToExport = _selectedPhotos.ToList();
             var addedCount = 0;
             var errors = new List<string>();
@@ -1148,8 +1148,8 @@ public partial class GalleryViewModel : BaseViewModel
             {
                 try
                 {
-                    // Create a copy of the photo for the PhotoBook
-                    // Original photo stays in main gallery (PhotoBookId remains null)
+                    // Maak een kopie van de foto voor het PhotoBook
+                    // Originele foto blijft in hoofdgalerij (PhotoBookId blijft null)
                     var photoCopy = new PhotoItem
                     {
                         FileName = photo.FileName,
@@ -1159,7 +1159,7 @@ public partial class GalleryViewModel : BaseViewModel
                         FileSizeMb = photo.FileSizeMb,
                         CreatedDate = photo.CreatedDate,
                         Rating = photo.Rating,
-                        PhotoBookId = targetPhotoBook.Id // This copy belongs to the PhotoBook
+                        PhotoBookId = targetPhotoBook.Id // Deze kopie hoort bij het PhotoBook
                     };
 
                     await _databaseService.AddPhotoAsync(photoCopy);
@@ -1181,10 +1181,10 @@ public partial class GalleryViewModel : BaseViewModel
                 }
             }
 
-            // Update PhotoBook UpdatedDate in database (this is important for sorting)
+            // Update PhotoBook UpdatedDate in database (dit is belangrijk voor sorteren)
             await _databaseService.UpdatePhotoBookAsync(targetPhotoBook);
 
-            // Clear selection but keep photos in main gallery
+            // Wis selectie maar behoud foto's in hoofdgalerij
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 foreach (var photo in photosToExport)
@@ -1199,7 +1199,7 @@ public partial class GalleryViewModel : BaseViewModel
                 SelectionActionsButtonVisible = false;
             });
 
-            // Show success message
+            // Toon succesbericht
             if (errors.Count == 0)
             {
                 await ShowAlertAsync("Success", $"Successfully exported {addedCount} photo(s) to '{targetPhotoBook.Name}'.");
@@ -1308,7 +1308,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Filtering & Sorting
+    #region Private Methodes - Filteren & Sorteren
 
     private void UpdateAvailableLabels()
     {
@@ -1327,7 +1327,7 @@ public partial class GalleryViewModel : BaseViewModel
 
     private void ApplyFiltersAndSort()
     {
-        // Only include photos with valid ImageSource
+        // Voeg alleen foto's toe met geldige ImageSource
         var filteredPhotos = _allPhotos.Where(p => p.ImageSource != null).AsEnumerable();
 
         if (!string.IsNullOrEmpty(SelectedLabelFilter))
@@ -1438,12 +1438,12 @@ public partial class GalleryViewModel : BaseViewModel
 
     #endregion
 
-    #region Private Methods - Navigation & UI
+    #region Private Methodes - Navigatie & UI
 
     private void ToggleSidebar()
     {
-        // This needs to be handled by the View as it directly manipulates UI elements
-        // TODO: Use messaging or event to communicate with View
+        // Dit moet worden afgehandeld door de View omdat het direct UI elementen manipuleert
+        // TODO: Gebruik messaging of event om te communiceren met View
     }
 
     private async Task OpenPhotoBookAsync()
@@ -1497,11 +1497,11 @@ public partial class GalleryViewModel : BaseViewModel
 
     partial void OnCurrentPhotoChanged(PhotoItem? value)
     {
-        // Update rating en labels wanneer CurrentPhoto verandert
+        // Update waardering en labels wanneer CurrentPhoto verandert
         if (value != null)
         {
             CurrentPhotoRating = value.Rating;
-            // Zorg dat labels geladen zijn voordat we CurrentPhoto zetten
+            // Zorg ervoor dat labels geladen zijn voordat we CurrentPhoto zetten
             // (dit wordt al gedaan in ShowPhotoOverlayAsync, maar als extra check)
             
             // TODO: If photo has location data, trigger map update event
@@ -1509,14 +1509,14 @@ public partial class GalleryViewModel : BaseViewModel
         }
         else
         {
-            // Reset rating wanneer geen photo geselecteerd is
+            // Reset waardering wanneer geen foto geselecteerd is
             CurrentPhotoRating = 0;
         }
     }
 
     partial void OnCurrentPhotoRatingChanged(int value)
     {
-        // Update the photo's rating if current photo exists
+        // Update de waardering van de foto als huidige foto bestaat
         if (CurrentPhoto != null && CurrentPhoto.Rating != value)
         {
             CurrentPhoto.Rating = value;

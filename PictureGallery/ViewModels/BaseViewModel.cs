@@ -3,26 +3,26 @@ using CommunityToolkit.Mvvm.ComponentModel;
 namespace PictureGallery.ViewModels;
 
 /// <summary>
-/// Base ViewModel class that implements INotifyPropertyChanged
-/// Provides common functionality for all ViewModels
+/// Basis ViewModel klasse die INotifyPropertyChanged implementeert
+/// Biedt gemeenschappelijke functionaliteit voor alle ViewModels
 /// </summary>
 public partial class BaseViewModel : ObservableObject
 {
     /// <summary>
-    /// Indicates whether the ViewModel is currently busy (e.g., loading data)
+    /// Geeft aan of de ViewModel momenteel bezig is (bijv. data aan het laden)
     /// </summary>
     [ObservableProperty]
     private bool isBusy;
 
     /// <summary>
-    /// Title of the page/view
+    /// Titel van de pagina/view
     /// </summary>
     [ObservableProperty]
     private string title = string.Empty;
 
     /// <summary>
-    /// Indicates whether the ViewModel is not busy
-    /// Useful for enabling/disabling UI elements
+    /// Geeft aan of de ViewModel niet bezig is
+    /// Handig voor het in-/uitschakelen van UI elementen
     /// </summary>
     public bool IsNotBusy => !IsBusy;
 }

@@ -70,7 +70,7 @@ public class PhotoBook : INotifyPropertyChanged
         }
     }
 
-    // Cached thumbnail image source
+    // Gecachte thumbnail image source
     private ImageSource? _thumbnailImage;
     
     [Ignore]
@@ -104,7 +104,7 @@ public class PhotoBook : INotifyPropertyChanged
     [Ignore]
     public bool ShowStorageSize => TotalSizeMb > 0;
 
-    // Selection state for UI (runtime only)
+    // Selectiestatus voor UI (alleen runtime)
     private bool _isSelected;
     [Ignore]
     public bool IsSelected
