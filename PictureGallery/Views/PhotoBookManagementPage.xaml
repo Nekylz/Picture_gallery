@@ -13,21 +13,28 @@
                 <!-- HEADER SECTION -->
                 <Grid ColumnDefinitions="Auto,*,Auto">
                     <!-- Back Button -->
-                    <Button x:Name="BackButton"
-                            Grid.Column="0"
-                            Text="←"
-                            FontSize="24"
-                            WidthRequest="50"
-                            HeightRequest="50"
-                            CornerRadius="25"
-                            BackgroundColor="#FFF5F3"
-                            BorderColor="Black"
-                            BorderWidth="2"
-                            TextColor="Black"
-                            HorizontalOptions="Start"
-                            VerticalOptions="Start"
-                            Margin="0,0,15,0"
-                            Clicked="BackButton_Clicked" />
+                    <Border Grid.Column="0"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            StrokeThickness="2"
+                            Stroke="Black"
+                            BackgroundColor="Transparent"
+                            Margin="0,0,15,0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="22" />
+                        </Border.StrokeShape>
+                        <Button x:Name="BackButton"
+                                FontFamily="MaterialIcons"
+                                Text="chevron_left"
+                                FontSize="28"
+                                BackgroundColor="Transparent"
+                                TextColor="Black"
+                                Padding="0"
+                                Margin="0"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Fill"
+                                Clicked="BackButton_Clicked" />
+                    </Border>
                     
                     <VerticalStackLayout Grid.Column="1" Spacing="4">
                         <!-- Title with shadow effect for thicker appearance -->
