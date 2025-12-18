@@ -3,19 +3,8 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:ContentView="clr-namespace:PictureGallery.Views"
              x:Class="PictureGallery.Views.MyMainPage"
-             Title="MyMainPage">
-
-    <ContentPage.ToolbarItems>
-        <ToolbarItem Text="Page1" Clicked="OnPage1Clicked"/>
-        <ToolbarItem Text="Gallery" Clicked="OnPage2Clicked"/>
-    </ContentPage.ToolbarItems>
-
-    <ContentPage.MenuBarItems>
-        <MenuBarItem Text="Pages">
-            <MenuFlyoutItem Text="Page1" Clicked="OnPage1Clicked"/>
-            <MenuFlyoutItem Text="Gallery" Clicked="OnPage2Clicked"/>
-        </MenuBarItem>
-    </ContentPage.MenuBarItems>
+             Title=""
+             Shell.NavBarIsVisible="False">
 
     <ScrollView VerticalOptions="Fill"
                 HorizontalOptions="Fill">

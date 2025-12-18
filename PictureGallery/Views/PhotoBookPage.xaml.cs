@@ -362,6 +362,21 @@ public partial class PhotoBookPage : ContentPage
     private bool _isRefreshingCarousel = false;
     private System.Threading.Timer? _rebuildDebounceTimer;
 
+    private async void BackButton_Clicked(object? sender, EventArgs e)
+    {
+        if (Navigation != null && Navigation.NavigationStack.Count > 1)
+        {
+            await Navigation.PopAsync();
+        }
+        else if (Application.Current?.MainPage != null)
+        {
+            if (Application.Current.MainPage.Navigation != null && Application.Current.MainPage.Navigation.NavigationStack.Count > 1)
+            {
+                await Application.Current.MainPage.Navigation.PopAsync();
+            }
+        }
+    }
+
     // Removed OnPageChanged - all photos on one page
 
     private void PageContainer_Loaded(object? sender, EventArgs e)

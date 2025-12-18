@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:viewmodels="clr-namespace:PictureGallery.ViewModels"
-             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
-             xmlns:views="clr-namespace:PictureGallery.Views"
-             x:Class="PictureGallery.Views.Gallery"
-             Title="Gallery">
+                     xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+                     xmlns:viewmodels="clr-namespace:PictureGallery.ViewModels"
+                     xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+                     xmlns:views="clr-namespace:PictureGallery.Views"
+                     x:Class="PictureGallery.Views.Gallery"
+                     Title="Gallery"
+                     Shell.NavBarIsVisible="False">
     <Grid x:Name="MainGrid" 
           ColumnDefinitions="220,*" 
           BackgroundColor="#F3E1DD"
