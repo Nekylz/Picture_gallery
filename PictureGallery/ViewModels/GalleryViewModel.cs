@@ -92,6 +92,9 @@ public partial class GalleryViewModel : BaseViewModel
     private string overlayFileSize = string.Empty;
 
     [ObservableProperty]
+    private string overlayImportedDate = string.Empty;
+
+    [ObservableProperty]
     private int currentPhotoRating;
 
     [ObservableProperty]
@@ -561,6 +564,7 @@ public partial class GalleryViewModel : BaseViewModel
                 OverlayFileSize = photo.FileSizeText;
                 CurrentPhotoRating = photo.Rating;
                 IsFullscreenOverlayVisible = true;
+                OverlayImportedDate = photo.CreatedDateDisplay;
             });
         }
         catch (Exception ex)
