@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using SkiaSharp;
 using SQLite;
 
 namespace PictureGallery.Models;
@@ -84,6 +85,7 @@ public class PhotoItem : INotifyPropertyChanged
 
     /// <summary>
     /// Initialize the ImageSource from the FilePath
+    /// Validates that the file is a valid image using SkiaSharp before creating ImageSource
     /// </summary>
     public void InitializeImageSource()
     {
@@ -98,16 +100,41 @@ public class PhotoItem : INotifyPropertyChanged
             System.Diagnostics.Debug.WriteLine($"InitializeImageSource: File does not exist at path '{FilePath}' for photo {Id}");
             return;
         }
-        
+
+        // Validate that the file is actually a valid image by trying to decode it
         try
         {
+            using (var stream = File.OpenRead(FilePath))
+            {
+                var bitmap = SKBitmap.Decode(stream);
+                
+                if (bitmap == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is not a valid image (SkiaSharp could not decode it)");
+                    bitmap?.Dispose();
+                    return; // Don't set ImageSource if file is not a valid image
+                }
+
+                if (bitmap.Width <= 0 || bitmap.Height <= 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - Image '{FilePath}' has invalid dimensions ({bitmap.Width}x{bitmap.Height})");
+                    bitmap.Dispose();
+                    return; // Don't set ImageSource if image has invalid dimensions
+                }
+
+                bitmap.Dispose();
+            }
+
+            // File is valid, now create ImageSource
             ImageSource = ImageSource.FromFile(FilePath);
             System.Diagnostics.Debug.WriteLine($"InitializeImageSource: Successfully created ImageSource for photo {Id} from '{FilePath}'");
         }
         catch (Exception ex)
         {
-            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ERROR creating ImageSource for photo {Id}: {ex.Message}");
-            throw;
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ERROR validating/creating ImageSource for photo {Id}: {ex.Message}");
+            // Don't throw - just log the error and don't set ImageSource
+            // This prevents the app from crashing if one image is corrupt
+            return;
         }
     }
 
