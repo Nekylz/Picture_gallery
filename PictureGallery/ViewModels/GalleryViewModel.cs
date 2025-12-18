@@ -1323,7 +1323,8 @@ public partial class GalleryViewModel : BaseViewModel
 
     private void ApplyFiltersAndSort()
     {
-        var filteredPhotos = _allPhotos.AsEnumerable();
+        // Only include photos with valid ImageSource
+        var filteredPhotos = _allPhotos.Where(p => p.ImageSource != null).AsEnumerable();
 
         if (!string.IsNullOrEmpty(SelectedLabelFilter))
         {
