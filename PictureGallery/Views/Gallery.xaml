@@ -330,7 +330,7 @@
                             <Label x:Name="OverlayDimensions" Text="{Binding OverlayDimensions}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
                             <Label x:Name="OverlayFileSize" Text="{Binding OverlayFileSize}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
                             <Label x:Name="OverlayImportedDate" Text="{Binding OverlayImportedDate}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
-                            <Label x:Name="OverlayExifDate" Text="{Binding OverlayExifDate}" TextColor="White" FontSize="14" HorizontalTextAlignment="Center" />
+                            
                         </StackLayout>
 
                         <!-- RATING STARS -->

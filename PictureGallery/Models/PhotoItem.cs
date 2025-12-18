@@ -32,10 +32,6 @@ public class PhotoItem : INotifyPropertyChanged
 
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
 
-    public string ExifDateText { get; set; } = string.Empty;
-
-    public string ImportedDateText { get; set; } = string.Empty;
-
     /// <summary>
     /// PhotoBookId to indicate if photo belongs only to a PhotoBook (not in main gallery)
     /// If null or 0, photo is in main gallery

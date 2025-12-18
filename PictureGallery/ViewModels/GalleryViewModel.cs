@@ -94,9 +94,6 @@ public partial class GalleryViewModel : BaseViewModel
     private string overlayImportedDate = string.Empty;
 
     [ObservableProperty]
-    private string overlayExifDate = string.Empty;
-
-    [ObservableProperty]
     private int currentPhotoRating;
 
     [ObservableProperty]
