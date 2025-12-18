@@ -4,6 +4,7 @@ using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 using PictureGallery.Models;
 using PictureGallery.Services;
+using PictureGallery.Views;
 using SkiaSharp;
 using System;
 using System.Collections.Generic;
@@ -161,13 +162,33 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                         // Verify ImageSource (should be set by DatabaseService)
                         if (photo.ImageSource == null)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] WARNING - Photo {photo.Id} has null ImageSource, skipping");
-                            continue;
+                            System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] WARNING - Photo {photo.Id} ({photo.FileName}) has null ImageSource, attempting to initialize...");
+                            
+                            // Try to initialize ImageSource if file exists
+                            if (photo.FileExists && !string.IsNullOrEmpty(photo.FilePath))
+                            {
+                                photo.InitializeImageSource();
+                                
+                                if (photo.ImageSource == null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] SKIP photo {photo.Id} - Could not initialize ImageSource");
+                                    continue;
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Successfully initialized ImageSource for photo {photo.Id}");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] SKIP photo {photo.Id} - File does not exist or path is empty");
+                                continue;
+                            }
                         }
 
                         // Add photo to the single page
                         singlePage.Photos.Add(photo);
-                        System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Added photo {photo.Id} (ImageSource={photo.ImageSource != null}) to page");
+                        System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Added photo {photo.Id} ({photo.FileName}) to page - ImageSource: {photo.ImageSource != null}, FilePath: {photo.FilePath}");
                     }
 
                     // Add the single page with all photos
@@ -198,6 +219,39 @@ public partial class PhotoBookPageViewModel : BaseViewModel
     }
 
     private async Task AddPhotoAsync()
+    {
+        try
+        {
+            if (Application.Current?.MainPage == null)
+                return;
+
+            // Show action sheet with two options
+            var action = await Application.Current.MainPage.DisplayActionSheet(
+                "Add Photo",
+                "Cancel",
+                null,
+                "From Device",
+                "From Gallery");
+
+            if (action == null || action == "Cancel")
+                return;
+
+            if (action == "From Device")
+            {
+                await AddPhotoFromDeviceAsync();
+            }
+            else if (action == "From Gallery")
+            {
+                await AddPhotoFromGalleryAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Error", $"Could not add photos: {ex.Message}");
+        }
+    }
+
+    private async Task AddPhotoFromDeviceAsync()
     {
         try
         {
@@ -333,6 +387,170 @@ public partial class PhotoBookPageViewModel : BaseViewModel
         catch (Exception ex)
         {
             await ShowAlertAsync("Fout", ex.Message);
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task AddPhotoFromGalleryAsync()
+    {
+        try
+        {
+            if (Application.Current?.MainPage == null)
+                return;
+
+            // Navigate to photo selection page
+            var selectionViewModel = new SelectPhotosFromGalleryViewModel(_photoBookId);
+            var selectionPage = new Views.SelectPhotosFromGalleryPage(selectionViewModel);
+            
+            // Subscribe to photos selected event
+            selectionViewModel.PhotosSelected += async (selectedPhotos) =>
+            {
+                await AddPhotosToPhotoBookAsync(selectedPhotos);
+            };
+
+            // Load photos and show page
+            await selectionViewModel.LoadPhotosAsync();
+            await Application.Current.MainPage.Navigation.PushModalAsync(selectionPage);
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Error", $"Could not open photo selection: {ex.Message}");
+        }
+    }
+
+    private async Task AddPhotosToPhotoBookAsync(List<PhotoItem> selectedPhotos)
+    {
+        try
+        {
+            IsBusy = true;
+
+            var newPhotos = new List<PhotoItem>();
+
+            foreach (var galleryPhoto in selectedPhotos)
+            {
+                try
+                {
+                    // Create a copy of the photo for the PhotoBook
+                    var photoCopy = new PhotoItem
+                    {
+                        FileName = galleryPhoto.FileName,
+                        FilePath = galleryPhoto.FilePath,
+                        Width = galleryPhoto.Width,
+                        Height = galleryPhoto.Height,
+                        FileSizeMb = galleryPhoto.FileSizeMb,
+                        CreatedDate = galleryPhoto.CreatedDate,
+                        Rating = galleryPhoto.Rating,
+                        PhotoBookId = _photoBookId // This copy belongs to the PhotoBook
+                    };
+
+                    await _databaseService.AddPhotoAsync(photoCopy);
+
+                    // Copy labels from original photo to the copy
+                    if (galleryPhoto.Labels.Count > 0)
+                    {
+                        foreach (var label in galleryPhoto.Labels)
+                        {
+                            await _databaseService.AddLabelAsync(photoCopy.Id, label);
+                        }
+                    }
+
+                    // Load labels and initialize ImageSource for the copy
+                    await _databaseService.LoadLabelsForPhotoAsync(photoCopy);
+                    if (photoCopy.FileExists)
+                    {
+                        photoCopy.InitializeImageSource();
+                    }
+
+                    newPhotos.Add(photoCopy);
+                }
+                catch (Exception ex)
+                {
+                    await ShowAlertAsync("Error", $"Could not add photo '{galleryPhoto.FileName}': {ex.Message}");
+                    continue;
+                }
+            }
+
+            if (newPhotos.Count == 0)
+            {
+                IsBusy = false;
+                return;
+            }
+
+            // Add photos to UI
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                // Ensure we have at least one page
+                if (PhotoBook.Pages.Count == 0)
+                {
+                    PhotoBook.Pages.Add(new PhotoBookPageModel());
+                }
+
+                var page = PhotoBook.Pages[0]; // Always use the first (and only) page
+
+                // Add all photos at once
+                foreach (var photo in newPhotos)
+                {
+                    page.Photos.Add(photo);
+                }
+
+                // Update thumbnail if it's the first photo
+                if (PhotoBook.Pages[0].Photos.Count == newPhotos.Count && newPhotos[0].ImageSource != null)
+                {
+                    PhotoBook.ThumbnailImage = newPhotos[0].ImageSource;
+                }
+            });
+
+            // Update database
+            if (_photoBookId.HasValue)
+            {
+                await _databaseService.UpdatePhotoBookAsync(PhotoBook);
+            }
+
+            // Refresh UI
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                UpdateUI();
+
+                // Create a new PhotoBook instance to force UI update
+                var updatedPhotoBook = new PhotoBook
+                {
+                    Id = PhotoBook.Id,
+                    Name = PhotoBook.Name,
+                    Description = PhotoBook.Description,
+                    CreatedDate = PhotoBook.CreatedDate,
+                    UpdatedDate = PhotoBook.UpdatedDate,
+                    ThumbnailImage = PhotoBook.ThumbnailImage
+                };
+
+                // Copy all pages and photos
+                foreach (var page in PhotoBook.Pages)
+                {
+                    var newPage = new PhotoBookPageModel { Title = page.Title };
+                    foreach (var photo in page.Photos)
+                    {
+                        newPage.Photos.Add(photo);
+                    }
+                    updatedPhotoBook.Pages.Add(newPage);
+                }
+
+                // Replace PhotoBook instance - this forces UI to update
+                PhotoBook = updatedPhotoBook;
+
+                // Trigger event to notify View that photos were added
+                PhotosAdded?.Invoke();
+
+                // Then notify property change
+                OnPropertyChanged(nameof(PhotoBook));
+
+                System.Diagnostics.Debug.WriteLine($"[AddPhotoFromGalleryAsync] Photos added - Pages: {PhotoBook.Pages.Count}, Total photos: {PhotoBook.Pages.Sum(p => p.Photos.Count)}");
+            });
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Error", $"Could not add photos from gallery: {ex.Message}");
         }
         finally
         {

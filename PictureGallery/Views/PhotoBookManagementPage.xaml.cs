@@ -46,6 +46,21 @@ public partial class PhotoBookManagementPage : ContentPage
         }
     }
 
+    private async void BackButton_Clicked(object? sender, EventArgs e)
+    {
+        if (Navigation != null && Navigation.NavigationStack.Count > 1)
+        {
+            await Navigation.PopAsync();
+        }
+        else if (Application.Current?.MainPage != null)
+        {
+            if (Application.Current.MainPage.Navigation != null && Application.Current.MainPage.Navigation.NavigationStack.Count > 1)
+            {
+                await Application.Current.MainPage.Navigation.PopAsync();
+            }
+        }
+    }
+
     // UI-specific helper for responsive design - can stay in code-behind
     private void PhotoBooksCollection_SizeChanged(object? sender, EventArgs e)
     {

@@ -4,7 +4,8 @@
              x:Class="PictureGallery.Views.PhotoBookPage"
              Title="Photo Book"
              BackgroundColor="#F5F5F5"
-             xmlns:converters1="clr-namespace:PictureGallery.Converters">
+             xmlns:converters1="clr-namespace:PictureGallery.Converters"
+             Shell.NavBarIsVisible="False">
 
     <Grid RowDefinitions="Auto,*,Auto">
         
@@ -14,9 +15,27 @@
                     StrokeThickness="0"
                     Padding="15"
                     Stroke="#E0E0E0">
-                <HorizontalStackLayout Spacing="15" HorizontalOptions="Fill">
+                <Grid ColumnDefinitions="Auto,*">
+                    <!-- Back Button -->
+                    <Button x:Name="BackButton"
+                            Grid.Column="0"
+                            Text="←"
+                            FontSize="24"
+                            WidthRequest="50"
+                            HeightRequest="50"
+                            CornerRadius="25"
+                            BackgroundColor="White"
+                            BorderColor="Black"
+                            BorderWidth="2"
+                            TextColor="Black"
+                            HorizontalOptions="Start"
+                            VerticalOptions="Center"
+                            Margin="0,0,15,0"
+                            Clicked="BackButton_Clicked" />
                     
-                    <!-- Add Photo Button -->
+                    <HorizontalStackLayout Grid.Column="1" Spacing="15" HorizontalOptions="Fill">
+                    
+                        <!-- Add Photo Button -->
                     <Button Text="Add Photo"
                             Command="{Binding AddPhotoCommand}"
                             BackgroundColor="#2196F3"
@@ -40,7 +59,8 @@
                             CornerRadius="8"
                             Padding="15,10" />
 
-                </HorizontalStackLayout>
+                    </HorizontalStackLayout>
+                </Grid>
             </Border>
             
             <!-- Navigation buttons removed - all photos on one page -->
