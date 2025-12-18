@@ -91,6 +91,8 @@ public class DatabaseService
         System.Diagnostics.Debug.WriteLine($"Loaded {photos.Count} photos from database");
         
         // Laad labels en initialiseer ImageSource voor elke foto
+        // Filter out photos that cannot be loaded
+        var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
@@ -99,7 +101,17 @@ public class DatabaseService
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
-                System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
+                
+                // Only include photos with valid ImageSource
+                if (photo.ImageSource != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
+                    validPhotos.Add(photo);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Photo skipped: Id={photo.Id}, FileName={photo.FileName} - ImageSource could not be created");
+                }
             }
             else
             {
@@ -107,7 +119,7 @@ public class DatabaseService
             }
         }
 
-        return photos;
+        return validPhotos;
     }
 
     /// <summary>
@@ -376,6 +388,8 @@ public class DatabaseService
             .ToListAsync();
 
         // Laad labels en initialiseer ImageSource voor elke foto
+        // Filter out photos that cannot be loaded
+        var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
@@ -384,10 +398,16 @@ public class DatabaseService
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
+                
+                // Only include photos with valid ImageSource
+                if (photo.ImageSource != null)
+                {
+                    validPhotos.Add(photo);
+                }
             }
         }
 
-        return photos;
+        return validPhotos;
     }
 
     // UTILS

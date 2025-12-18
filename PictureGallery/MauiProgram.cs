@@ -10,15 +10,18 @@ namespace PictureGallery
             var builder = MauiApp.CreateBuilder();
             builder
                 .UseMauiApp<App>()
-                .UseMauiCommunityToolkit() 
-                .ConfigureFonts(fonts =>
-                {
-                    fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
-                    fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
+                .UseMauiCommunityToolkit();
+            
+            // Maps are handled via WebView with Mapbox on Windows and macOS
+            
+            builder.ConfigureFonts(fonts =>
+            {
+                fonts.AddFont("OpenSans-Regular.ttf", "OpenSansRegular");
+                fonts.AddFont("OpenSans-Semibold.ttf", "OpenSansSemibold");
 
-                    // REQUIRED FOR ARROWS
-                    fonts.AddFont("MaterialIcons-Regular.ttf", "MaterialIcons");
-                });
+                // REQUIRED FOR ARROWS
+                fonts.AddFont("MaterialIcons-Regular.ttf", "MaterialIcons");
+            });
 #if DEBUG
     		builder.Logging.AddDebug();
 #endif

@@ -54,9 +54,9 @@ public partial class PhotoBookPage : ContentPage
             return;
         }
 
-        if (_isRefreshingCarousel)
+        if (_isRefreshingCarousel || _isRebuildingLayout)
         {
-            System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh already in progress, skipping");
+            System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh/rebuild already in progress, skipping");
             return;
         }
 
@@ -68,54 +68,45 @@ public partial class PhotoBookPage : ContentPage
             {
                 System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Forcing masonry layout rebuild");
                 
-                // Cancel any pending rebuilds
+                // Cancel any pending rebuilds from SizeChanged
                 _rebuildDebounceTimer?.Dispose();
                 _rebuildDebounceTimer = null;
                 
                 // Wait for visual tree to be ready, then directly rebuild masonry layout
-                await Task.Delay(200);
+                await Task.Delay(300);
                 
-                // Try multiple times with increasing delays
-                bool rebuildSuccessful = false;
-                for (int attempt = 0; attempt < 6; attempt++)
+                // Single rebuild attempt - no need for multiple retries
+                bool rebuildSuccessful = await MainThread.InvokeOnMainThreadAsync(() =>
                 {
-                    await Task.Delay(100 + (attempt * 50)); // 100, 150, 200, 250, 300, 350ms
-                    
-                    rebuildSuccessful = await MainThread.InvokeOnMainThreadAsync(() =>
+                    if (_isRebuildingLayout)
                     {
-                        if (_isRebuildingLayout)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[ForceCarouselViewRefresh] Attempt {attempt + 1}: Rebuild already in progress, skipping");
-                            return false;
-                        }
-                        
-                        System.Diagnostics.Debug.WriteLine($"[ForceCarouselViewRefresh] Attempt {attempt + 1}: Attempting direct masonry rebuild");
-                        
-                        // Find PageContainer and rebuild
-                        if (PageContainer != null)
-                        {
-                            RebuildMasonryLayoutForContainer(PageContainer);
-                            return true;
-                        }
-                        
+                        System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Rebuild already in progress, skipping");
                         return false;
-                    });
-                    
-                    if (rebuildSuccessful)
-                    {
-                        break;
                     }
-                }
+                    
+                    // Find PageContainer and rebuild
+                    if (PageContainer != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Rebuilding masonry layout");
+                        RebuildMasonryLayoutForContainer(PageContainer);
+                        return true;
+                    }
+                    
+                    return false;
+                });
                 
                 if (!rebuildSuccessful)
                 {
-                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Could not rebuild masonry layout after all attempts");
+                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Could not rebuild masonry layout");
                 }
+                
+                // Wait for rebuild to complete before resetting flag
+                await Task.Delay(2000); // Give rebuild more time to complete
                 
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     _isRefreshingCarousel = false;
-                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh complete");
+                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh complete - flag reset");
                 });
             }
             catch (Exception ex)
@@ -131,40 +122,19 @@ public partial class PhotoBookPage : ContentPage
     {
         System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Property changed: {e.PropertyName}");
         
-        // Skip rebuilds if we're already refreshing the CarouselView
+        // Skip rebuilds if we're already refreshing - PhotosAdded/PhotosDeleted events handle refresh
         if (_isRefreshingCarousel)
         {
-            System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Skipping rebuild - CarouselView refresh in progress");
+            System.Diagnostics.Debug.WriteLine($"[ViewModel_PropertyChanged] Skipping rebuild - refresh already in progress");
             return;
         }
         
-        // Debounce rebuilds to prevent multiple rapid rebuilds
-        _rebuildDebounceTimer?.Dispose();
-        
         if (e.PropertyName == nameof(PhotoBookPageViewModel.PhotoBook))
         {
-            // Don't rebuild if we just triggered a refresh via PhotosAdded/PhotosDeleted events
-            // Those events will handle the refresh themselves
-            System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] PhotoBook changed - checking if refresh is already in progress");
-            
-            // Only rebuild if we're not already refreshing
-            _rebuildDebounceTimer = new System.Threading.Timer(_ =>
-            {
-                _rebuildDebounceTimer?.Dispose();
-                _rebuildDebounceTimer = null;
-                MainThread.BeginInvokeOnMainThread(() =>
-                {
-                    if (!_isRebuildingLayout && !_isRefreshingCarousel)
-                    {
-                        System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] Rebuilding masonry layout after PhotoBook change");
-                        RebuildCurrentPageLayoutDebounced();
-                    }
-                    else
-                    {
-                        System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] Skipping rebuild - refresh or rebuild already in progress");
-                    }
-                });
-            }, null, 400, Timeout.Infinite);
+            // PhotosAdded/PhotosDeleted events will trigger ForceCarouselViewRefresh
+            // which handles the rebuild with proper debouncing
+            // So we skip PropertyChanged rebuilds to prevent duplicate rebuilds and flickering
+            System.Diagnostics.Debug.WriteLine("[ViewModel_PropertyChanged] PhotoBook changed - PhotosAdded/PhotosDeleted events will handle refresh");
         }
         else if (e.PropertyName == nameof(PhotoBookPageViewModel.IsDeleteMode) ||
                  e.PropertyName == nameof(PhotoBookPageViewModel.IsPdfMode))
@@ -326,75 +296,100 @@ public partial class PhotoBookPage : ContentPage
         
         System.Diagnostics.Debug.WriteLine("[PhotoBookPage] OnAppearing called");
         
+        // Reset flags in case they're stuck from a previous session
+        _isRebuildingLayout = false;
+        _isRefreshingCarousel = false;
+        System.Diagnostics.Debug.WriteLine("[PhotoBookPage] Reset rebuild flags");
+        
         if (ViewModel != null)
         {
             await ViewModel.LoadPhotoBookAsync();
             
-            await Task.Delay(200);
+            // Wait a bit longer to ensure visual tree is ready
+            await Task.Delay(800);
             
-            MainThread.BeginInvokeOnMainThread(() =>
+            // Try multiple times to ensure rebuild happens
+            for (int attempt = 0; attempt < 5; attempt++)
             {
-                if (ViewModel.PhotoBook != null)
+                await Task.Delay(300);
+                
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook loaded with {ViewModel.PhotoBook.Pages.Count} page(s)");
-                    
-                    // Layout will be rebuilt via PageContainer_Loaded
-                    System.Diagnostics.Debug.WriteLine("[PhotoBookPage] Waiting for PageContainer_Loaded");
+                    if (ViewModel.PhotoBook != null && PageContainer != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook loaded with {ViewModel.PhotoBook.Pages.Count} page(s), attempt {attempt + 1}, Rebuilding: {_isRebuildingLayout}, Refreshing: {_isRefreshingCarousel}");
+                        
+                        // Force reset flags if they've been stuck for too long
+                        if (attempt >= 2 && (_isRebuildingLayout || _isRefreshingCarousel))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Force resetting stuck rebuild flags (attempt {attempt + 1})");
+                            _isRebuildingLayout = false;
+                            _isRefreshingCarousel = false;
+                        }
+                        
+                        // Only trigger rebuild if we're not already rebuilding
+                        if (!_isRebuildingLayout && !_isRefreshingCarousel)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Triggering rebuild after load (attempt {attempt + 1})");
+                            ForceCarouselViewRefresh();
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Rebuild already in progress, skipping attempt {attempt + 1}");
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook or PageContainer not ready yet (attempt {attempt + 1}) - PhotoBook: {ViewModel?.PhotoBook != null}, PageContainer: {PageContainer != null}");
+                    }
+                });
+                
+                // If rebuild was successful, break out of loop
+                if (attempt > 1)
+                {
+                    await Task.Delay(200); // Give rebuild time to complete
+                    if (!_isRefreshingCarousel && !_isRebuildingLayout)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Rebuild completed, breaking out of loop");
+                        break;
+                    }
                 }
-            });
+            }
         }
     }
 
-    private bool _isUpdatingPosition = false;
     private bool _isRebuildingLayout = false;
     private bool _isRefreshingCarousel = false;
     private System.Threading.Timer? _rebuildDebounceTimer;
-    private bool _pendingRefresh = false;
 
     // Removed OnPageChanged - all photos on one page
 
     private void PageContainer_Loaded(object? sender, EventArgs e)
     {
         System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Page container loaded");
+        
+        // Ignore if rebuild or refresh is already in progress
+        if (_isRebuildingLayout || _isRefreshingCarousel)
+        {
+            System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Rebuild/refresh in progress, skipping");
+            return;
+        }
+        
         if (sender is Border border)
         {
-            // If there's a pending refresh, execute it now
-            if (_pendingRefresh)
-            {
-                _pendingRefresh = false;
-                System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Pending refresh detected, executing rebuild");
-            }
-            
-            // Always rebuild when container loads - this is the most reliable way
-            // Use a delay to ensure visual tree is fully ready
-            Task.Delay(200).ContinueWith(_ =>
+            // Only rebuild if PhotoBook is loaded and we're not already rebuilding
+            Task.Delay(300).ContinueWith(_ =>
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    if (ViewModel?.PhotoBook != null)
+                    if (ViewModel?.PhotoBook != null && !_isRebuildingLayout && !_isRefreshingCarousel)
                     {
-                        // Only skip if we're actively rebuilding to prevent conflicts
-                        if (_isRebuildingLayout)
-                        {
-                            System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Rebuild in progress, will retry");
-                            // Retry after rebuild completes
-                            Task.Delay(600).ContinueWith(__ =>
-                            {
-                                MainThread.BeginInvokeOnMainThread(() =>
-                                {
-                                    System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Retrying rebuild after delay");
-                                    RebuildMasonryLayoutForContainer(border);
-                                });
-                            });
-                            return;
-                        }
-                        
                         System.Diagnostics.Debug.WriteLine("[PageContainer_Loaded] Executing rebuild for loaded container");
                         RebuildMasonryLayoutForContainer(border);
                     }
                     else
                     {
-                        System.Diagnostics.Debug.WriteLine($"[PageContainer_Loaded] ViewModel or PhotoBook is null, cannot rebuild");
+                        System.Diagnostics.Debug.WriteLine($"[PageContainer_Loaded] Skipping rebuild - ViewModel: {ViewModel != null}, PhotoBook: {ViewModel?.PhotoBook != null}, Rebuilding: {_isRebuildingLayout}, Refreshing: {_isRefreshingCarousel}");
                     }
                 });
             });
@@ -403,9 +398,17 @@ public partial class PhotoBookPage : ContentPage
 
     private void MasonryGrid_SizeChanged(object? sender, EventArgs e)
     {
-        if (sender is Grid grid && ViewModel != null && !_isRebuildingLayout)
+        // Completely ignore SizeChanged events during rebuilds or refreshes to prevent flickering
+        if (_isRebuildingLayout || _isRefreshingCarousel)
         {
-            // Debounce size changed events as they fire frequently
+            System.Diagnostics.Debug.WriteLine("[MasonryGrid_SizeChanged] Rebuild/refresh in progress, ignoring SizeChanged event");
+            return;
+        }
+        
+        if (sender is Grid grid && ViewModel != null)
+        {
+            // Debounce size changed events as they fire frequently, especially when adding multiple photos
+            // Increased delay significantly to prevent cascading rebuilds on Windows
             _rebuildDebounceTimer?.Dispose();
             _rebuildDebounceTimer = new System.Threading.Timer(_ =>
             {
@@ -413,12 +416,18 @@ public partial class PhotoBookPage : ContentPage
                 _rebuildDebounceTimer = null;
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    if (!_isRebuildingLayout)
+                    // Double check - rebuild might have started while timer was waiting
+                    if (!_isRebuildingLayout && !_isRefreshingCarousel)
                     {
+                        System.Diagnostics.Debug.WriteLine("[MasonryGrid_SizeChanged] Executing debounced rebuild");
                         RebuildMasonryLayoutForGrid(grid);
                     }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine("[MasonryGrid_SizeChanged] Rebuild/refresh started during debounce, skipping");
+                    }
                 });
-            }, null, 100, Timeout.Infinite);
+            }, null, 1000, Timeout.Infinite); // Increased to 1000ms to prevent flickering
         }
     }
 
@@ -465,11 +474,21 @@ public partial class PhotoBookPage : ContentPage
     {
         System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] ========== START ==========");
         
+        // Prevent multiple simultaneous rebuilds - set flag immediately to block SizeChanged events
+        if (_isRebuildingLayout)
+        {
+            System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Rebuild already in progress, skipping");
+            return;
+        }
+        
         if (ViewModel?.PhotoBook == null)
         {
             System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] ViewModel or PhotoBook is null");
-                return;
+            return;
         }
+
+        // Set rebuild flag immediately to prevent SizeChanged events from triggering cascading rebuilds
+        _isRebuildingLayout = true;
 
         // PhotoCarousel removed - all photos on one page
 
@@ -488,19 +507,28 @@ public partial class PhotoBookPage : ContentPage
             {
                 MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    column0 = masonryGrid.FindByName<VerticalStackLayout>("Column0");
-                    column1 = masonryGrid.FindByName<VerticalStackLayout>("Column1");
-                    column2 = masonryGrid.FindByName<VerticalStackLayout>("Column2");
-                    
-                    if (column0 == null || column1 == null || column2 == null)
+                    try
                     {
-                        System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns still not found after retry - Column0: {0}, Column1: {1}, Column2: {2}", 
-                            column0 != null, column1 != null, column2 != null);
-                        return;
+                        column0 = masonryGrid.FindByName<VerticalStackLayout>("Column0");
+                        column1 = masonryGrid.FindByName<VerticalStackLayout>("Column1");
+                        column2 = masonryGrid.FindByName<VerticalStackLayout>("Column2");
+                        
+                        if (column0 == null || column1 == null || column2 == null)
+                        {
+                            System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns still not found after retry - Column0: {0}, Column1: {1}, Column2: {2}", 
+                                column0 != null, column1 != null, column2 != null);
+                            _isRebuildingLayout = false;
+                            return;
+                        }
+                        
+                        System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns found on retry, building layout");
+                        BuildMasonryLayoutWithColumns(masonryGrid, column0, column1, column2);
                     }
-                    
-                    System.Diagnostics.Debug.WriteLine("[RebuildMasonryLayoutForGrid] Columns found on retry, building layout");
-                    BuildMasonryLayoutWithColumns(masonryGrid, column0, column1, column2);
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayoutForGrid] Error during retry: {ex.Message}");
+                        _isRebuildingLayout = false;
+                    }
                 });
             });
             return;
@@ -542,38 +570,41 @@ public partial class PhotoBookPage : ContentPage
             return;
         }
 
-        System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayoutForGridWithColumns] Building layout for {currentPage.Photos.Count} photos");
+            System.Diagnostics.Debug.WriteLine($"[BuildMasonryLayoutWithColumns] Building layout for {currentPage.Photos.Count} photos");
+
+        // Flag is already set in RebuildMasonryLayoutForGrid, but ensure it's set here too for direct calls
+        _isRebuildingLayout = true;
 
         MainThread.BeginInvokeOnMainThread(() =>
         {
-            // Clear all columns
-            column0.Children.Clear();
-            column1.Children.Clear();
-            column2.Children.Clear();
+            try
+            {
+                // Clear all columns - suppress SizeChanged during clear by setting flag first
+                // This prevents cascading rebuilds when children are removed
+                column0.Children.Clear();
+                column1.Children.Clear();
+                column2.Children.Clear();
 
             // Determine number of columns based on available width
             int numberOfColumns = GetNumberOfColumns(masonryGrid);
-            System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayout] Number of columns: {numberOfColumns}");
             
             // Get column definitions from grid
             var col0 = masonryGrid.ColumnDefinitions.Count > 0 ? masonryGrid.ColumnDefinitions[0] : null;
             var col1 = masonryGrid.ColumnDefinitions.Count > 1 ? masonryGrid.ColumnDefinitions[1] : null;
             var col2 = masonryGrid.ColumnDefinitions.Count > 2 ? masonryGrid.ColumnDefinitions[2] : null;
             
-            // Hide unused columns
-            if (col0 != null)
+            // Hide unused columns - batch these changes to minimize layout passes
+            if (col0 != null && col0.Width != (numberOfColumns > 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(0)))
                 col0.Width = numberOfColumns > 0 ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            if (col1 != null)
+            if (col1 != null && col1.Width != (numberOfColumns > 1 ? new GridLength(1, GridUnitType.Star) : new GridLength(0)))
                 col1.Width = numberOfColumns > 1 ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
-            if (col2 != null)
+            if (col2 != null && col2.Width != (numberOfColumns > 2 ? new GridLength(1, GridUnitType.Star) : new GridLength(0)))
                 col2.Width = numberOfColumns > 2 ? new GridLength(1, GridUnitType.Star) : new GridLength(0);
 
             // Calculate column widths - use actual width or fallback
             double gridWidth = masonryGrid.Width > 0 ? masonryGrid.Width : 800; // Fallback width
             double availableWidth = gridWidth - (numberOfColumns - 1) * 15; // Subtract spacing
             double columnWidth = availableWidth > 0 ? availableWidth / numberOfColumns : 200;
-            
-            System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayout] Grid width: {gridWidth}, Column width: {columnWidth}");
 
             // Distribute photos across columns using masonry algorithm
             var columnHeights = new double[numberOfColumns];
@@ -599,14 +630,13 @@ public partial class PhotoBookPage : ContentPage
                 
                 if (photoBorder != null)
                 {
-                    // Add to column
+                    // Add to column - this may trigger SizeChanged, but we ignore it while _isRebuildingLayout is true
                     columns[targetColumn].Children.Add(photoBorder);
 
                     // Calculate photo height based on aspect ratio
                     double photoHeight = CalculatePhotoHeight(photo, columnWidth);
                     columnHeights[targetColumn] += photoHeight + 15; // Add spacing
                     
-                    System.Diagnostics.Debug.WriteLine($"[RebuildMasonryLayout] Added photo {photoIndex} ({photo.FileName}) to column {targetColumn}, height: {photoHeight}");
                     photoIndex++;
                 }
                 else
@@ -616,6 +646,20 @@ public partial class PhotoBookPage : ContentPage
             }
             
             System.Diagnostics.Debug.WriteLine($"[BuildMasonryLayout] ========== COMPLETE - Added {photoIndex} photos ==========");
+            }
+            finally
+            {
+                // Always reset the rebuild flag after a delay to ensure all SizeChanged events have been processed
+                // This prevents immediate SizeChanged-triggered rebuilds after we finish
+                Task.Delay(2000).ContinueWith(_ =>
+                {
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        _isRebuildingLayout = false;
+                        System.Diagnostics.Debug.WriteLine("[BuildMasonryLayout] Rebuild flag reset - SizeChanged events will now be processed again");
+                    });
+                });
+            }
         });
     }
 
