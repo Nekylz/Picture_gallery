@@ -77,16 +77,22 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Get all photos from the database
+    /// Get all photos from the database (excludes photos that are only in PhotoBooks)
     /// </summary>
     public async Task<List<PhotoItem>> GetAllPhotosAsync()
     {
         var db = await GetDatabaseAsync();
-        var photos = await db.Table<PhotoItem>().OrderByDescending(p => p.CreatedDate).ToListAsync();
+        // Only get photos that are NOT in a PhotoBook (PhotoBookId is null or 0)
+        var photos = await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId == null || p.PhotoBookId == 0)
+            .OrderByDescending(p => p.CreatedDate)
+            .ToListAsync();
         
         System.Diagnostics.Debug.WriteLine($"Loaded {photos.Count} photos from database");
         
         // Laad labels en initialiseer ImageSource voor elke foto
+        // Filter out photos that cannot be loaded
+        var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
@@ -95,7 +101,17 @@ public class DatabaseService
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
-                System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
+                
+                // Only include photos with valid ImageSource
+                if (photo.ImageSource != null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
+                    validPhotos.Add(photo);
+                }
+                else
+                {
+                    System.Diagnostics.Debug.WriteLine($"Photo skipped: Id={photo.Id}, FileName={photo.FileName} - ImageSource could not be created");
+                }
             }
             else
             {
@@ -103,7 +119,7 @@ public class DatabaseService
             }
         }
 
-        return photos;
+        return validPhotos;
     }
 
     /// <summary>
@@ -138,7 +154,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Delete a photo and all its labels
+    /// Delete a photo, all its labels, and the file from disk
     /// </summary>
     public async Task<int> DeletePhotoAsync(PhotoItem photo)
     {
@@ -147,8 +163,26 @@ public class DatabaseService
         // Delete all labels for this photo first
         await db.Table<PhotoLabel>().DeleteAsync(l => l.PhotoId == photo.Id);
         
-        // Delete the photo
-        return await db.DeleteAsync(photo);
+        // Delete the photo file from disk
+        if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
+        {
+            try
+            {
+                File.Delete(photo.FilePath);
+                System.Diagnostics.Debug.WriteLine($"DeletePhotoAsync: Deleted file {photo.FilePath} for photo {photo.Id}");
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"DeletePhotoAsync: Error deleting file {photo.FilePath}: {ex.Message}");
+                // Continue with database deletion even if file deletion fails
+            }
+        }
+        
+        // Delete the photo from database
+        var result = await db.DeleteAsync(photo);
+        System.Diagnostics.Debug.WriteLine($"DeletePhotoAsync: Deleted photo {photo.Id} from database");
+        
+        return result;
     }
 
     /// <summary>
@@ -165,7 +199,7 @@ public class DatabaseService
         return await db.Table<PhotoItem>().DeleteAsync(p => p.Id == id);
     }
 
-    // ========== LABEL OPERATIONS ==========
+    // Labels
 
     /// <summary>
     /// Voegt een label toe aan een foto (hoofdletterongevoelig)
@@ -274,6 +308,33 @@ public class DatabaseService
     }
 
     /// <summary>
+    /// Verwijdert een label van alle foto's en uit de database
+    /// </summary>
+    /// <param name="labelText"></param>
+    /// <returns></returns>
+    public async Task<int> DeleteLabelFromAllPhotosAsync(string labelText)
+    {
+        var db = await GetDatabaseAsync();
+
+        // Haal alle labels op en filter hoofdletterongevoelig
+        var allLabels = await db.Table<PhotoLabel>().ToListAsync();
+        var matchingLabels = allLabels
+            .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        if (!matchingLabels.Any())
+            return 0;
+
+        // Verwijder het label van alle foto's door elke matching label te verwijderen
+        int deletedCount = 0;
+        foreach (var label in matchingLabels)
+        {
+            deletedCount += await db.DeleteAsync(label);
+        }
+        return deletedCount;
+    }
+
+    /// <summary>
     /// Remove a label by ID
     /// </summary>
     public async Task<int> RemoveLabelByIdAsync(int labelId)
@@ -327,6 +388,8 @@ public class DatabaseService
             .ToListAsync();
 
         // Laad labels en initialiseer ImageSource voor elke foto
+        // Filter out photos that cannot be loaded
+        var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
@@ -335,21 +398,55 @@ public class DatabaseService
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
+                
+                // Only include photos with valid ImageSource
+                if (photo.ImageSource != null)
+                {
+                    validPhotos.Add(photo);
+                }
             }
         }
 
-        return photos;
+        return validPhotos;
     }
 
-    // ========== UTILITY METHODS ==========
+    // UTILS
 
     /// <summary>
-    /// Get the total number of photos
+    /// Get the total number of photos (excludes photos in PhotoBooks)
     /// </summary>
     public async Task<int> GetPhotoCountAsync()
     {
         var db = await GetDatabaseAsync();
-        return await db.Table<PhotoItem>().CountAsync();
+        // Only count photos that are NOT in a PhotoBook (PhotoBookId is null or 0)
+        return await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId == null || p.PhotoBookId == 0)
+            .CountAsync();
+    }
+
+    /// <summary>
+    /// Get the total number of photos that are in PhotoBooks
+    /// </summary>
+    public async Task<int> GetPhotoBookPhotoCountAsync()
+    {
+        var db = await GetDatabaseAsync();
+        // Only count photos that ARE in a PhotoBook (PhotoBookId is not null and not 0)
+        return await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId != null && p.PhotoBookId != 0)
+            .CountAsync();
+    }
+
+    /// <summary>
+    /// Delete all photos from the database (use with caution!)
+    /// </summary>
+    public async Task DeleteAllPhotosAsync()
+    {
+        var db = await GetDatabaseAsync();
+        // Delete all labels first
+        await db.DeleteAllAsync<PhotoLabel>();
+        // Then delete all photos
+        await db.DeleteAllAsync<PhotoItem>();
+        System.Diagnostics.Debug.WriteLine("All photos deleted from database");
     }
 
     /// <summary>
@@ -363,7 +460,7 @@ public class DatabaseService
         await db.DeleteAllAsync<PhotoBook>();
     }
 
-    // ========== PHOTOBOOK OPERATIONS ==========
+   // PHOTOBOOK
 
     /// <summary>
     /// Voegt een nieuwe PhotoBook toe aan de database
@@ -398,6 +495,85 @@ public class DatabaseService
         var db = await GetDatabaseAsync();
         return await db.Table<PhotoBook>().Where(pb => pb.Id == id).FirstOrDefaultAsync();
     }
+    
+    /// <summary>
+    /// Haalt de eerste foto op die bij een PhotoBook hoort (voor thumbnail)
+    /// </summary>
+    public async Task<PhotoItem?> GetFirstPhotoByPhotoBookIdAsync(int photoBookId)
+    {
+        var db = await GetDatabaseAsync();
+        var photo = await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId == photoBookId)
+            .OrderBy(p => p.CreatedDate)
+            .FirstOrDefaultAsync();
+        
+        if (photo != null && photo.FileExists)
+        {
+            photo.InitializeImageSource();
+        }
+        
+        return photo;
+    }
+
+    /// <summary>
+    /// Haalt alle foto's op die bij een PhotoBook horen
+    /// </summary>
+    public async Task<List<PhotoItem>> GetPhotosByPhotoBookIdAsync(int photoBookId)
+    {
+        System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] START - PhotoBookId: {photoBookId}");
+        
+        var db = await GetDatabaseAsync();
+        
+        // Step 1: Load photos from database
+        var photos = await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId == photoBookId)
+            .OrderBy(p => p.CreatedDate)
+            .ToListAsync();
+        
+        System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] Found {photos.Count} photos in database for PhotoBook {photoBookId}");
+        
+        // Step 2: Load labels and initialize ImageSource for each photo
+        var validPhotos = new List<PhotoItem>();
+        
+        foreach (var photo in photos)
+        {
+            System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] Processing photo {photo.Id}: FileName={photo.FileName}, FilePath={photo.FilePath}");
+            
+            // Load labels
+            await LoadLabelsForPhotoAsync(photo);
+            
+            // Check if file exists
+            if (!photo.FileExists)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] SKIP photo {photo.Id} - File does not exist at path: {photo.FilePath}");
+                continue;
+            }
+            
+            // Initialize ImageSource (this is critical for UI display)
+            try
+            {
+                photo.InitializeImageSource();
+                
+                if (photo.ImageSource == null)
+                {
+                    System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] SKIP photo {photo.Id} - ImageSource is null after initialization");
+                    continue;
+                }
+                
+                System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] SUCCESS photo {photo.Id} - ImageSource initialized: {photo.ImageSource != null}");
+                validPhotos.Add(photo);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] ERROR initializing ImageSource for photo {photo.Id}: {ex.Message}");
+                continue;
+            }
+        }
+        
+        System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] COMPLETE - Returning {validPhotos.Count} valid photos out of {photos.Count} total");
+        
+        return validPhotos;
+    }
 
     /// <summary>
     /// Werkt een bestaande PhotoBook bij
@@ -410,12 +586,47 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een PhotoBook uit de database
+    /// Verwijdert een PhotoBook uit de database en alle foto's die erbij horen
     /// </summary>
     public async Task<int> DeletePhotoBookAsync(PhotoBook photoBook)
     {
         var db = await GetDatabaseAsync();
-        return await db.DeleteAsync(photoBook);
+        
+        // First, delete all photos that belong to this PhotoBook
+        var photos = await db.Table<PhotoItem>()
+            .Where(p => p.PhotoBookId == photoBook.Id)
+            .ToListAsync();
+        
+        System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Deleting {photos.Count} photos from PhotoBook {photoBook.Id}");
+        
+        foreach (var photo in photos)
+        {
+            // Delete labels first
+            await db.Table<PhotoLabel>().DeleteAsync(l => l.PhotoId == photo.Id);
+            
+            // Delete the photo file from disk
+            if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
+            {
+                try
+                {
+                    File.Delete(photo.FilePath);
+                    System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Deleted file {photo.FilePath}");
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Error deleting file {photo.FilePath}: {ex.Message}");
+                }
+            }
+            
+            // Delete the photo from database
+            await db.DeleteAsync(photo);
+        }
+        
+        // Finally, delete the PhotoBook itself
+        var result = await db.DeleteAsync(photoBook);
+        System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Deleted PhotoBook {photoBook.Id}");
+        
+        return result;
     }
 
     /// <summary>

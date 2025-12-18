@@ -2,11 +2,14 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              xmlns:viewmodels="clr-namespace:PictureGallery.ViewModels"
+             xmlns:maps="clr-namespace:Microsoft.Maui.Controls.Maps;assembly=Microsoft.Maui.Controls.Maps"
+             xmlns:views="clr-namespace:PictureGallery.Views"
              x:Class="PictureGallery.Views.Gallery"
              Title="Gallery">
     <Grid x:Name="MainGrid" 
           ColumnDefinitions="220,*" 
-          BackgroundColor="#F3E1DD">
+          BackgroundColor="#F3E1DD"
+          RowDefinitions="*">
         <!-- SIDEBAR -->
         <Border x:Name="Sidebar"
                 Grid.Column="0"
@@ -65,22 +68,9 @@
                        HasShadow="False"
                        BorderColor="#C7D9B7">
                     <Frame.GestureRecognizers>
-                        <TapGestureRecognizer Command="{Binding LabelDropdownCommand}" />
+                        <TapGestureRecognizer Command="{Binding RemoveLabelSidebarCommand}" />
                     </Frame.GestureRecognizers>
-                    <Label Text="Labels"
-                           FontSize="16"
-                           FontAttributes="Bold"
-                           TextColor="Black"
-                           HorizontalOptions="Center"
-                           VerticalOptions="Center" />
-                </Frame>
-
-                <Frame BackgroundColor="#F3E1DD"
-                       CornerRadius="14"
-                       Padding="14"
-                       HasShadow="False"
-                       BorderColor="#C7D9B7">
-                    <Label Text="Create Photobook"
+                    <Label Text="All labels"
                            FontSize="16"
                            FontAttributes="Bold"
                            TextColor="Black"
@@ -164,7 +154,7 @@
                         <Button x:Name="SelectionActionsButton"
                             Text="⋯"
                             FontSize="20"
-                            WidthRequest="40"
+                           WidthRequest="40"
                             HeightRequest="40"
                             Padding="0"
                            BackgroundColor="#EDEDED"
@@ -534,6 +524,31 @@
                                    HorizontalOptions="Center"
                                    IsVisible="{Binding CurrentPhoto.Labels, Converter={StaticResource InverseCollectionCountToBoolConverter}}" />
                         </Grid>
+
+                        <!-- LOCATION MAP SECTION -->
+                        <Border Margin="0,20,0,0"
+                                BackgroundColor="White"
+                                StrokeThickness="1"
+                                Stroke="#E0E0E0"
+                                Padding="0"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Start"
+                                WidthRequest="500"
+                                HeightRequest="300"
+                                x:Name="MapBorder">
+                            <Border.StrokeShape>
+                                <RoundRectangle CornerRadius="8" />
+                            </Border.StrokeShape>
+                            <!-- Map will be added programmatically in code-behind for supported platforms -->
+                            <Label x:Name="MapPlaceholderLabel"
+                                   Text="Map loading..."
+                                   HorizontalOptions="Center"
+                                   VerticalOptions="Center"
+                                   TextColor="#666666"
+                                   FontSize="14"
+                                   IsVisible="False" />
+                        </Border>
+
                     </VerticalStackLayout>
                 </ScrollView>
 
@@ -545,6 +560,16 @@
                     Margin="20"
                     Command="{Binding CloseFullscreenCommand}" />
             </Grid>
+        </Grid>
+
+        <!-- Create PhotoBook Modal - Overlay on top of everything -->
+        <Grid Grid.Row="0"
+              Grid.ColumnSpan="2"
+              IsVisible="{Binding IsCreatePhotoBookModalVisible}"
+              BackgroundColor="Transparent">
+            <views:CreatePhotoBookModal x:Name="CreatePhotoBookModal"
+                                        HorizontalOptions="Fill"
+                                        VerticalOptions="Fill" />
         </Grid>
     </Grid>
 </ContentPage>

@@ -46,6 +46,7 @@ public partial class GalleryViewModel : BaseViewModel
     private int selectedPhotosCount;
 
     private HashSet<PhotoItem> _selectedPhotos = new();
+    private bool _pendingPhotoBookCreation = false;
 
     // Filter and sort properties
     [ObservableProperty]
@@ -94,9 +95,16 @@ public partial class GalleryViewModel : BaseViewModel
     private int currentPhotoRating;
 
     [ObservableProperty]
+    private bool isCreatePhotoBookModalVisible;
+
+    [ObservableProperty]
     private string labelEntryText = string.Empty;
 
     private List<PhotoItem> _allPhotos = new(); // Alle foto's (voor filtering)
+
+    // Event for map location updates (MVVM communication)
+    public event Action<double, double>? MapLocationUpdateRequested;
+    public event Action? RequestShowCreatePhotoBookModal;
 
     public GalleryViewModel()
     {
@@ -119,6 +127,7 @@ public partial class GalleryViewModel : BaseViewModel
         OpenPhotoBookCommand = new AsyncRelayCommand(OpenPhotoBookAsync);
         ImportPhotoCommand = new AsyncRelayCommand(UploadMediaAsync);
         LabelDropdownCommand = new AsyncRelayCommand(LabelDropdownAsync);
+        RemoveLabelSidebarCommand = new AsyncRelayCommand(RemoveLabelSidebarAsync);
 
         // Load photos on initialization
         _ = LoadPhotosFromDatabaseAsync();
@@ -141,6 +150,7 @@ public partial class GalleryViewModel : BaseViewModel
     public ICommand OpenPhotoBookCommand { get; }
     public ICommand ImportPhotoCommand { get; }
     public ICommand LabelDropdownCommand { get; }
+    public ICommand RemoveLabelSidebarCommand { get; }
 
     #endregion
 
@@ -621,6 +631,48 @@ public partial class GalleryViewModel : BaseViewModel
         LabelEntryText = string.Empty; // Clear entry after adding
     }
 
+    /// <summary>
+    /// Deletes a label from all photos and the database.
+    /// </summary>
+    /// <param name="label"></param>
+    /// <returns></returns>
+    private async Task DeleteLabelAsync(string? label)
+    {
+        // Makes sure the label gets removed from all photos and the database
+
+        if (string.IsNullOrWhiteSpace(label))
+            return;
+        try
+            {
+            bool confirm = await Application.Current?.MainPage?.DisplayAlert(
+                "Confirm Delete",
+                $"Are you sure you want to delete the label '{label}' from all photos and the database?",
+                "Yes",
+                "No");
+            if (!confirm)
+                return;
+            await _databaseService.DeleteLabelFromAllPhotosAsync(label);
+            
+            // Update labels in all photos
+            foreach (var photo in _allPhotos)
+            {
+                if (photo.Labels.Contains(label))
+                {
+                    photo.Labels.Remove(label);
+                    await _databaseService.RemoveLabelAsync(photo.Id, label);
+                }
+            }
+            UpdateAvailableLabels();
+            ApplyFiltersAndSort();
+            await ShowAlertAsync("Label Deleted", $"The label '{label}' has been deleted from all photos.");
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error deleting label: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not delete label: {ex.Message}");
+        }
+    }
+
     public async Task AddLabelFromTextAsync(string? labelText)
     {
         if (CurrentPhoto == null)
@@ -747,6 +799,35 @@ public partial class GalleryViewModel : BaseViewModel
         }
     }
 
+    /// <summary>
+    /// Shows an action sheet to select and remove a label from all photos.
+    /// </summary>
+    /// <returns></returns>
+    private async Task RemoveLabelSidebarAsync()
+    {
+
+        await LoadAvailableLabelsAsync();
+
+        // Display all labels in an action sheet for selection
+        if (AvailableLabels.Count == 0)
+        {
+            await ShowAlertAsync("No Labels", "No labels are available yet. Please add a label via the text box first.");
+            return;
+        }
+        var options = AvailableLabels.ToList();
+        var selectedLabel = await Application.Current?.MainPage?.DisplayActionSheet(
+            "All labels (Select to remove from photos and database)",
+            "Close",
+            null,
+            options.ToArray());
+
+        if (selectedLabel != null && selectedLabel != "Close" && !string.IsNullOrWhiteSpace(selectedLabel))
+        {
+            await DeleteLabelAsync(selectedLabel);
+        }
+
+    }
+
     private async Task LoadAvailableLabelsAsync()
     {
         try
@@ -828,7 +909,7 @@ public partial class GalleryViewModel : BaseViewModel
                 await DeleteSelectedPhotosAsync();
                 break;
             case "Export to Photo Book":
-                await ShowAlertAsync("Info", "Photo book export coming soon!");
+                await ExportSelectedPhotosToPhotoBookAsync();
                 break;
             case "Add Labels":
                 await AddLabelsToSelectedPhotosAsync();
@@ -857,25 +938,79 @@ public partial class GalleryViewModel : BaseViewModel
         {
             var photosToDelete = _selectedPhotos.ToList();
 
+            int successCount = 0;
+            int errorCount = 0;
+            var errors = new List<string>();
+
             foreach (var photo in photosToDelete)
             {
                 photo.IsSelected = false;
 
+                // Try to delete file, but continue even if it fails
                 if (File.Exists(photo.FilePath))
                 {
-                    File.Delete(photo.FilePath);
+                    try
+                    {
+                        File.Delete(photo.FilePath);
+                    }
+                    catch (UnauthorizedAccessException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Cannot delete file (permission denied): {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"Permission denied: {photo.FileName}");
+                    }
+                    catch (IOException ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Cannot delete file (in use): {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"File in use: {photo.FileName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error deleting file: {photo.FilePath}. Error: {ex.Message}");
+                        errors.Add($"Error deleting {photo.FileName}: {ex.Message}");
+                    }
                 }
 
-                await _databaseService.DeletePhotoAsync(photo);
-
-                await MainThread.InvokeOnMainThreadAsync(() =>
+                // Always delete from database, even if file deletion failed
+                try
                 {
-                    _allPhotos.Remove(photo);
-                    Photos.Remove(photo);
-                });
+                    await _databaseService.DeletePhotoAsync(photo);
+
+                    await MainThread.InvokeOnMainThreadAsync(() =>
+                    {
+                        _allPhotos.Remove(photo);
+                        Photos.Remove(photo);
+                    });
+
+                    successCount++;
+                }
+                catch (Exception dbEx)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error deleting photo from database: {dbEx.Message}");
+                    errorCount++;
+                    errors.Add($"Database error for {photo.FileName}: {dbEx.Message}");
+                }
             }
 
-            await ShowAlertAsync("Done", $"{photosToDelete.Count} photos deleted.");
+            // Show appropriate message
+            if (errorCount == 0 && errors.Count == 0)
+            {
+                await ShowAlertAsync("Done", $"{successCount} photo(s) deleted.");
+            }
+            else if (successCount > 0)
+            {
+                string message = $"{successCount} photo(s) removed from gallery.";
+                if (errors.Count > 0)
+                {
+                    message += $"\n\nNote: Some files could not be deleted:\n{string.Join("\n", errors.Take(5))}";
+                    if (errors.Count > 5)
+                        message += $"\n... and {errors.Count - 5} more.";
+                }
+                await ShowAlertAsync("Partially Complete", message);
+            }
+            else
+            {
+                await ShowAlertAsync("Error", $"Could not delete photos:\n{string.Join("\n", errors.Take(5))}");
+            }
 
             _selectedPhotos.Clear();
             SelectedPhotosCount = 0;
@@ -895,6 +1030,194 @@ public partial class GalleryViewModel : BaseViewModel
         {
             System.Diagnostics.Debug.WriteLine($"Error deleting photos: {ex.Message}");
             await ShowAlertAsync("Error", $"Error deleting: {ex.Message}");
+        }
+    }
+
+    private async Task ExportSelectedPhotosToPhotoBookAsync()
+    {
+        if (_selectedPhotos.Count == 0)
+            return;
+
+        try
+        {
+            // Get all PhotoBooks from database
+            var photoBooks = await _databaseService.GetAllPhotoBooksAsync();
+
+            if (Application.Current?.MainPage == null)
+                return;
+
+            // Build action sheet options - include "Create New Photo Book" option
+            var options = new List<string> { "Create New Photo Book" };
+            if (photoBooks.Count > 0)
+            {
+                options.AddRange(photoBooks.Select(pb => pb.Name));
+            }
+
+            var selectedOption = await Application.Current.MainPage.DisplayActionSheet(
+                $"Export {_selectedPhotos.Count} photo(s) to Photo Book",
+                "Cancel",
+                null,
+                options.ToArray());
+
+            if (selectedOption == null || selectedOption == "Cancel")
+                return;
+
+            PhotoBook? targetPhotoBook = null;
+
+            if (selectedOption == "Create New Photo Book")
+            {
+                // Show the create photo book modal - this will be handled by the View
+                // The View will call OnPhotoBookCreatedForExport when the modal is submitted
+                _pendingPhotoBookCreation = true;
+                RequestShowCreatePhotoBookModal?.Invoke();
+                return; // Exit here, the export will continue when modal is submitted
+            }
+            else
+            {
+                // Find selected PhotoBook
+                targetPhotoBook = photoBooks.FirstOrDefault(pb => pb.Name == selectedOption);
+
+                if (targetPhotoBook == null)
+                {
+                    await ShowAlertAsync("Error", "Could not find the selected photo book.");
+                    return;
+                }
+            }
+
+            // Export photos to the selected PhotoBook
+            await ExportPhotosToPhotoBookAsync(targetPhotoBook);
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error exporting photos to PhotoBook: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not export photos: {ex.Message}");
+        }
+    }
+
+    public async Task OnPhotoBookCreatedForExport(string name, string description)
+    {
+        if (!_pendingPhotoBookCreation)
+            return;
+
+        _pendingPhotoBookCreation = false;
+
+        try
+        {
+            // Create new PhotoBook
+            var newPhotoBook = new PhotoBook
+            {
+                Name = name.Trim(),
+                Description = string.IsNullOrWhiteSpace(description) ? null : description.Trim(),
+                CreatedDate = DateTime.Now,
+                UpdatedDate = DateTime.Now
+            };
+
+            var photoBookId = await _databaseService.AddPhotoBookAsync(newPhotoBook);
+            var targetPhotoBook = await _databaseService.GetPhotoBookByIdAsync(photoBookId);
+
+            if (targetPhotoBook == null)
+            {
+                await ShowAlertAsync("Error", "Could not create the photo book.");
+                return;
+            }
+
+            // Now export photos to the newly created PhotoBook
+            await ExportPhotosToPhotoBookAsync(targetPhotoBook);
+        }
+        catch (Exception ex)
+        {
+            await ShowAlertAsync("Error", $"Could not create photo book: {ex.Message}");
+        }
+    }
+
+    private async Task ExportPhotosToPhotoBookAsync(PhotoBook targetPhotoBook)
+    {
+        try
+        {
+            // Add photos to PhotoBook by creating copies in the database
+            // This way, original photos remain in main gallery and copies are in PhotoBook
+            var photosToExport = _selectedPhotos.ToList();
+            var addedCount = 0;
+            var errors = new List<string>();
+
+            foreach (var photo in photosToExport)
+            {
+                try
+                {
+                    // Create a copy of the photo for the PhotoBook
+                    // Original photo stays in main gallery (PhotoBookId remains null)
+                    var photoCopy = new PhotoItem
+                    {
+                        FileName = photo.FileName,
+                        FilePath = photo.FilePath,
+                        Width = photo.Width,
+                        Height = photo.Height,
+                        FileSizeMb = photo.FileSizeMb,
+                        CreatedDate = photo.CreatedDate,
+                        Rating = photo.Rating,
+                        PhotoBookId = targetPhotoBook.Id // This copy belongs to the PhotoBook
+                    };
+
+                    await _databaseService.AddPhotoAsync(photoCopy);
+                    
+                    // Copy labels from original photo to the copy
+                    if (photo.Labels.Count > 0)
+                    {
+                        foreach (var label in photo.Labels)
+                        {
+                            await _databaseService.AddLabelAsync(photoCopy.Id, label);
+                        }
+                    }
+                    
+                    addedCount++;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"Could not add {photo.FileName}: {ex.Message}");
+                }
+            }
+
+            // Update PhotoBook UpdatedDate in database (this is important for sorting)
+            await _databaseService.UpdatePhotoBookAsync(targetPhotoBook);
+
+            // Clear selection but keep photos in main gallery
+            await MainThread.InvokeOnMainThreadAsync(() =>
+            {
+                foreach (var photo in photosToExport)
+                {
+                    photo.IsSelected = false;
+                }
+
+                _selectedPhotos.Clear();
+                SelectedPhotosCount = 0;
+                IsSelectionMode = false;
+                SelectButtonText = "Select";
+                SelectionActionsButtonVisible = false;
+            });
+
+            // Show success message
+            if (errors.Count == 0)
+            {
+                await ShowAlertAsync("Success", $"Successfully exported {addedCount} photo(s) to '{targetPhotoBook.Name}'.");
+            }
+            else
+            {
+                var message = $"Exported {addedCount} photo(s) to '{targetPhotoBook.Name}'.";
+                if (errors.Count <= 5)
+                {
+                    message += $"\n\nErrors:\n{string.Join("\n", errors)}";
+                }
+                else
+                {
+                    message += $"\n\nErrors:\n{string.Join("\n", errors.Take(5))}\n... and {errors.Count - 5} more.";
+                }
+                await ShowAlertAsync("Partially Complete", message);
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"Error exporting photos to PhotoBook: {ex.Message}");
+            await ShowAlertAsync("Error", $"Could not export photos: {ex.Message}");
         }
     }
 
@@ -1000,7 +1323,8 @@ public partial class GalleryViewModel : BaseViewModel
 
     private void ApplyFiltersAndSort()
     {
-        var filteredPhotos = _allPhotos.AsEnumerable();
+        // Only include photos with valid ImageSource
+        var filteredPhotos = _allPhotos.Where(p => p.ImageSource != null).AsEnumerable();
 
         if (!string.IsNullOrEmpty(SelectedLabelFilter))
         {
@@ -1175,6 +1499,9 @@ public partial class GalleryViewModel : BaseViewModel
             CurrentPhotoRating = value.Rating;
             // Zorg dat labels geladen zijn voordat we CurrentPhoto zetten
             // (dit wordt al gedaan in ShowPhotoOverlayAsync, maar als extra check)
+            
+            // TODO: If photo has location data, trigger map update event
+            // MapLocationUpdateRequested?.Invoke(latitude, longitude);
         }
         else
         {

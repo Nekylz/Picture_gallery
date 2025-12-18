@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.IO;
 using System.Runtime.CompilerServices;
+using SkiaSharp;
 using SQLite;
 
 namespace PictureGallery.Models;
@@ -29,10 +30,29 @@ public class PhotoItem : INotifyPropertyChanged
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
     public int Rating { get; set; } = 0; // 0 = geen rating, 1-5 = sterren
+    
+    /// <summary>
+    /// PhotoBookId to indicate if photo belongs only to a PhotoBook (not in main gallery)
+    /// If null or 0, photo is in main gallery
+    /// </summary>
+    [Indexed]
+    public int? PhotoBookId { get; set; }
 
     // Runtime property - not stored in database
+    private ImageSource? _imageSource;
     [Ignore]
-    public ImageSource? ImageSource { get; set; }
+    public ImageSource? ImageSource
+    {
+        get => _imageSource;
+        set
+        {
+            if (_imageSource != value)
+            {
+                _imageSource = value;
+                OnPropertyChanged();
+            }
+        }
+    }
 
     // Runtime property - loaded from database separately
     [Ignore]
@@ -65,12 +85,115 @@ public class PhotoItem : INotifyPropertyChanged
 
     /// <summary>
     /// Initialize the ImageSource from the FilePath
+    /// Validates that the file is a valid image using SkiaSharp before creating ImageSource
+    /// Also validates file permissions and accessibility
     /// </summary>
     public void InitializeImageSource()
     {
-        if (File.Exists(FilePath))
+        if (string.IsNullOrEmpty(FilePath))
         {
-            ImageSource = ImageSource.FromFile(FilePath);
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: FilePath is null or empty for photo {Id}");
+            return;
+        }
+        
+        if (!File.Exists(FilePath))
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: File does not exist at path '{FilePath}' for photo {Id}");
+            return;
+        }
+
+        // Additional validation: check if file is accessible and readable
+        try
+        {
+            var fileInfo = new FileInfo(FilePath);
+            if (fileInfo.Length == 0)
+            {
+                System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is empty (0 bytes)");
+                return;
+            }
+
+            // Check file permissions by trying to open it
+            using (var testStream = File.OpenRead(FilePath))
+            {
+                if (testStream.Length == 0)
+                {
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is empty (0 bytes)");
+                    return;
+                }
+            }
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - No access to file '{FilePath}': {ex.Message}");
+            return;
+        }
+        catch (IOException ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - IO error accessing file '{FilePath}': {ex.Message}");
+            return;
+        }
+
+        // Validate that the file is actually a valid image by trying to decode it
+        try
+        {
+            SKBitmap? bitmap = null;
+            try
+            {
+                using (var stream = File.OpenRead(FilePath))
+                {
+                    bitmap = SKBitmap.Decode(stream);
+                    
+                    if (bitmap == null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - File '{FilePath}' is not a valid image (SkiaSharp could not decode it)");
+                        return; // Don't set ImageSource if file is not a valid image
+                    }
+
+                    if (bitmap.Width <= 0 || bitmap.Height <= 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - Image '{FilePath}' has invalid dimensions ({bitmap.Width}x{bitmap.Height})");
+                        bitmap.Dispose();
+                        return; // Don't set ImageSource if image has invalid dimensions
+                    }
+
+                    // Verify bitmap data is valid
+                    if (bitmap.Pixels == null || bitmap.Pixels.Length == 0)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - Image '{FilePath}' has no pixel data");
+                        bitmap.Dispose();
+                        return;
+                    }
+                }
+
+                // Dispose bitmap before creating ImageSource
+                bitmap?.Dispose();
+                bitmap = null;
+
+                // File is valid, now try to create ImageSource
+                // Use a try-catch around ImageSource creation as MAUI may fail even if SkiaSharp succeeds
+                try
+                {
+                    ImageSource = ImageSource.FromFile(FilePath);
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: Successfully created ImageSource for photo {Id} from '{FilePath}'");
+                }
+                catch (InvalidOperationException ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"InitializeImageSource: SKIP photo {Id} - MAUI cannot create ImageSource from '{FilePath}': {ex.Message}");
+                    // Don't set ImageSource if MAUI cannot create it
+                    return;
+                }
+            }
+            finally
+            {
+                bitmap?.Dispose();
+            }
+        }
+        catch (Exception ex)
+        {
+            System.Diagnostics.Debug.WriteLine($"InitializeImageSource: ERROR validating/creating ImageSource for photo {Id}: {ex.Message}");
+            // Don't throw - just log the error and don't set ImageSource
+            // This prevents the app from crashing if one image is corrupt
+            return;
         }
     }
 
