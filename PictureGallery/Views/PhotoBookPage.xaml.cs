@@ -1,5 +1,7 @@
 ﻿using PictureGallery.ViewModels;
 using CommunityToolkit.Maui.Storage;
+using Microsoft.Maui.Storage;
+using CommunityToolkit.Maui.Views;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using PdfSharpCore.Pdf;
@@ -13,26 +15,52 @@ namespace PictureGallery.Views;
 
 public partial class PhotoBookPage : ContentPage
 {
-    private PhotoBookPageViewModel? ViewModel => BindingContext as PhotoBookPageViewModel;
+// Houdt het fotoboek en alle pagina's bij
+public PhotoBook PhotoBook { get; set; } = new();
+
+// Handige verwijzing naar het ViewModel
+private PhotoBookPageViewModel? ViewModel => BindingContext as PhotoBookPageViewModel;
 
     public PhotoBookPage() : this(null) { }
 
-    public PhotoBookPage(int? photoBookId)
-    {
-        InitializeComponent();
-        var viewModel = new PhotoBookPageViewModel(photoBookId);
-        BindingContext = viewModel;
-        
-        // Removed CarouselView - all photos on one page
-        
-        // Subscribe to PhotoBook property changes
-        if (viewModel != null)
-        {
-            viewModel.PropertyChanged += ViewModel_PropertyChanged;
-            viewModel.PhotosDeleted += ViewModel_PhotosDeleted;
-            viewModel.PhotosAdded += ViewModel_PhotosAdded;
-        }
-    }
+// Aantal foto's waarna snelle PDF relevant wordt
+private const int FastPdfThreshold = 8;
+
+// Houdt bij of de upgrade popup deze sessie al is getoond
+private bool _upgradePopupShownThisSession = false;
+
+// PDF modus binding
+public static readonly BindableProperty IsPdfModeProperty =
+    BindableProperty.Create(
+        nameof(IsPdfMode),
+        typeof(bool),
+        typeof(PhotoBookPage),
+        false);
+
+public bool IsPdfMode
+{
+    get => (bool)GetValue(IsPdfModeProperty);
+    set => SetValue(IsPdfModeProperty, value);
+}
+
+// Constructor met optioneel fotoboek-id (develop)
+public PhotoBookPage(int? photoBookId)
+{
+    InitializeComponent();
+
+    var viewModel = new PhotoBookPageViewModel(photoBookId);
+    BindingContext = viewModel;
+
+    viewModel.PropertyChanged += ViewModel_PropertyChanged;
+    viewModel.PhotosDeleted += ViewModel_PhotosDeleted;
+    viewModel.PhotosAdded += ViewModel_PhotosAdded;
+}
+
+// Parameterloze constructor
+public PhotoBookPage() : this(null)
+{
+}
+
 
     private void ViewModel_PhotosAdded()
     {
@@ -852,275 +880,290 @@ public partial class PhotoBookPage : ContentPage
                 .Select(p => p.FilePath)
                 .ToArray();
 
-            if (selectedPhotos.Length == 0)
-            {
-                await DisplayAlert("No selection", "Select at least one photo.", "OK");
-                return;
-            }
+if (selectedPhotos.Length == 0)
+{
+    await DisplayAlert("Geen selectie", "Selecteer minimaal één foto.", "OK");
+    return;
+}
 
-            var folderResult = await FolderPicker.Default.PickAsync(default);
-            if (!folderResult.IsSuccessful) return;
+var folderResult = await FolderPicker.Default.PickAsync(default);
+if (!folderResult.IsSuccessful)
+    return;
 
-            string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
-            string pdfPath = Path.Combine(folderResult.Folder.Path, $"PhotoBook_{timestamp}.pdf");
+string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+string pdfPath = Path.Combine(
+    folderResult.Folder.Path,
+    $"Fotoboek_{timestamp}.pdf");
 
-            ProgressFrame.IsVisible = true;
-            PdfProgressBar.Progress = 0;
-            ProgressLabel.Text = "0% (0 of 0 photos)";
+ProgressFrame.IsVisible = true;
+PdfProgressBar.Progress = 0;
+ProgressLabel.Text = $"0% (0 van {selectedPhotos.Length} foto's)";
 
-            await GeneratePdfWithProgress(selectedPhotos, pdfPath);
+bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+bool exceedsLimit = selectedPhotos.Length > FastPdfThreshold;
+bool useFastPdf = fastUnlocked && exceedsLimit;
 
-            ProgressFrame.IsVisible = false;
+if (exceedsLimit && !fastUnlocked && !_upgradePopupShownThisSession)
+{
+    _upgradePopupShownThisSession = true;
 
-            bool share = await DisplayAlert("Success", $"PDF saved in:\n{pdfPath}\n\nDo you want to share the file?", "Share", "Close");
+    bool upgrade = await DisplayAlert(
+        "Langzame conversie",
+        "Upgrade voor snelle PDF conversie?",
+        "Upgrade",
+        "Doorgaan");
 
-            if (share)
-            {
-                await Share.Default.RequestAsync(new ShareFileRequest
-                {
-                    Title = "Share Photo Book PDF",
-                    File = new ShareFile(pdfPath)
-                });
-            }
-            else
-            {
-                await Launcher.OpenAsync(new OpenFileRequest
-                {
-                    File = new ReadOnlyFile(pdfPath)
-                });
-            }
-        }
-        catch (Exception ex)
-        {
-            ProgressFrame.IsVisible = false;
-            await DisplayAlert("Error", ex.Message, "OK");
-        }
-        finally
-        {
-            ViewModel?.CancelPdfModeCommand.Execute(null);
-        }
-    }
-
-    private async Task GeneratePdfWithProgress(string[] images, string outputPath)
+    if (upgrade)
     {
-        int totalImages = images.Length;
-        int processed = 0;
-        int skipped = 0;
+        await OnPlanTappedAsync();
+        fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+        useFastPdf = fastUnlocked;
+    }
+}
+                if (upgrade)
+                {
+                    var popup = new PlanPopup();
+                    var result = await this.ShowPopupAsync(popup);
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
+                    if (result is string password && password == "DEVGROUP2")
+                    {
+                        Preferences.Set("FastPdfUnlocked", true);
+                        fastUnlocked = true;
+                        UpdatePlanBar();
+                    }
+                }
+            }
+
+            bool useFastPdf = fastUnlocked && exceedsLimit;
+
+            if (useFastPdf)
+                await GenerateFastPdfWithProgress(selectedPhotos, pdfPath);
+            else
+await DisplayAlert(
+    "Succes",
+    $"PDF opgeslagen:\n{pdfPath}",
+    "OK");
+}
+catch (Exception ex)
+{
+    await DisplayAlert("Fout", ex.Message, "OK");
+}
+finally
+{
+    ProgressFrame.IsVisible = false;
+    ViewModel?.CancelPdfModeCommand.Execute(null);
+}
+
+
+// Snelle PDF conversie met progress
+private async Task GenerateFastPdfWithProgress(string[] images, string outputPath)
+{
+    await Task.Run(() =>
+    {
+        SkiaSharpPdfService.ImagesToPdf(
+            images,
+            outputPath,
+            (processed, total) =>
+            {
+                double progress = (double)processed / total;
+
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    PdfProgressBar.Progress = progress;
+                    ProgressLabel.Text =
+                        $"{(int)(progress * 100)}% ({processed} van {total} foto's)";
+                });
+            });
+    });
+}
+
+private async Task GeneratePdfWithProgress(string[] images, string outputPath)
+{
+    int totalImages = images.Length;
+
+    await MainThread.InvokeOnMainThreadAsync(() =>
+    {
+        PdfProgressBar.Progress = 0;
+        ProgressLabel.Text = $"0% (0 van {totalImages} foto's)";
+    });
+
+    await Task.Run(() =>
+    {
+        PdfService.ImagesToPdf(
+            images,
+            outputPath,
+            (processed, total) =>
+            {
+                MainThread.BeginInvokeOnMainThread(() =>
+                {
+                    double progress = (double)processed / totalImages;
+                    PdfProgressBar.Progress = progress;
+                    ProgressLabel.Text =
+                        $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
+                });
+            });
+    });
+}
+
+private async Task GeneratePdfWithProgress(string[] images, string outputPath)
+{
+    int totalImages = images.Length;
+    int processed = 0;
+    int skipped = 0;
+
+    await MainThread.InvokeOnMainThreadAsync(() =>
+    {
+        PdfProgressBar.Progress = 0;
+        ProgressLabel.Text = $"0% (0 van {totalImages} foto's)";
+    });
+
+    await Task.Delay(100);
+
+    var doc = new PdfDocument();
+
+    foreach (var imgPath in images)
+    {
+        try
         {
-            PdfProgressBar.Progress = 0;
-            ProgressLabel.Text = $"0% (0 of {totalImages} photos)";
-        });
+            if (string.IsNullOrEmpty(imgPath) || !File.Exists(imgPath))
+            {
+                skipped++;
+                processed++;
+                continue;
+            }
 
-        await Task.Delay(100);
+            var fileInfo = new FileInfo(imgPath);
+            if (fileInfo.Length == 0)
+            {
+                skipped++;
+                processed++;
+                continue;
+            }
 
-        var doc = new PdfDocument();
+            XImage? img = null;
+            string? tempPngPath = null;
 
-        foreach (var imgPath in images)
-        {
             try
             {
-                if (string.IsNullOrEmpty(imgPath) || !File.Exists(imgPath))
-                {
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] File does not exist: {imgPath}");
-                    skipped++;
-                    processed++;
-                    continue;
-                }
-
-                // Verify file is readable and not empty
-                var fileInfo = new FileInfo(imgPath);
-                if (fileInfo.Length == 0)
-                {
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] File is empty: {imgPath}");
-                    skipped++;
-                    processed++;
-                    continue;
-                }
-
-                System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Processing image: {imgPath}");
-
-                // Try to load the image - first try PdfSharpCore directly, then use SkiaSharp as fallback
-                XImage? img = null;
-                string? tempPngPath = null;
+                // Eerst PdfSharpCore (basic plan standaard)
                 try
                 {
-                    // Make sure the path is absolute and accessible
-                    var absolutePath = Path.IsPathRooted(imgPath) ? imgPath : Path.GetFullPath(imgPath);
-                    
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Attempting to load image from: {absolutePath}");
-                    
-                    // Try to load image directly with PdfSharpCore first
-                    try
-                    {
-                        img = XImage.FromFile(absolutePath);
-                        
-                        // Verify image dimensions
-                        if (img != null && img.PixelWidth > 0 && img.PixelHeight > 0)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Successfully loaded with PdfSharpCore: {absolutePath}");
-                        }
-                        else
-                        {
-                            if (img != null)
-                            {
-                                img.Dispose();
-                                img = null;
-                            }
-                            throw new Exception("Invalid image dimensions");
-                        }
-                    }
-                    catch (Exception pdfEx)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] PdfSharpCore failed, trying SkiaSharp: {pdfEx.Message}");
-                        
-                        // Fallback: Use SkiaSharp to decode and convert to temporary PNG file
-                        using (var fileStream = File.OpenRead(absolutePath))
-                        {
-                            using (var skBitmap = SKBitmap.Decode(fileStream))
-                            {
-                                if (skBitmap == null || skBitmap.Width <= 0 || skBitmap.Height <= 0)
-                                {
-                                    throw new Exception("SkiaSharp failed to decode image");
-                                }
-                                
-                                // Create temporary PNG file
-                                tempPngPath = Path.Combine(Path.GetTempPath(), $"pdf_export_{Guid.NewGuid()}.png");
-                                
-                                using (var image = SKImage.FromBitmap(skBitmap))
-                                using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
-                                {
-                                    using (var fileStream2 = File.Create(tempPngPath))
-                                    {
-                                        data.SaveTo(fileStream2);
-                                    }
-                                }
-                                
-                                // Now load the temporary PNG with PdfSharpCore
-                                img = XImage.FromFile(tempPngPath);
-                                
-                                System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Successfully converted with SkiaSharp and loaded: {absolutePath}");
-                            }
-                        }
-                    }
-
-                    if (img == null)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Failed to load image: {absolutePath}");
-                        skipped++;
-                        processed++;
-                        continue;
-                    }
-
-                    var page = doc.AddPage();
-                    
-                    // Calculate page size based on image dimensions and resolution
-                    double width = img.PixelWidth;
-                    double height = img.PixelHeight;
-                    
-                    // Handle resolution - if resolution is 0 or invalid, use default 72 DPI
-                    double horizontalResolution = img.HorizontalResolution > 0 ? img.HorizontalResolution : 72;
-                    double verticalResolution = img.VerticalResolution > 0 ? img.VerticalResolution : 72;
-                    
-                    // Convert pixels to points (72 points per inch)
-                    page.Width = width * 72 / horizontalResolution;
-                    page.Height = height * 72 / verticalResolution;
-                    
-                    // Ensure minimum page size
-                    if (page.Width <= 0) page.Width = 612; // 8.5 inches
-                    if (page.Height <= 0) page.Height = 792; // 11 inches
-
-                    using (var gfx = XGraphics.FromPdfPage(page))
-                    {
-                        gfx.DrawImage(img, 0, 0, page.Width, page.Height);
-                    }
-                    
-                    img.Dispose();
-                    img = null;
-                    
-                    // Clean up temporary PNG file if created
-                    if (tempPngPath != null && File.Exists(tempPngPath))
-                    {
-                        try
-                        {
-                            File.Delete(tempPngPath);
-                        }
-                        catch (Exception delEx)
-                        {
-                            System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Failed to delete temp file {tempPngPath}: {delEx.Message}");
-                        }
-                    }
-                    
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Successfully added image to PDF: {absolutePath}");
+                    img = XImage.FromFile(imgPath);
                 }
-                catch (Exception imgEx)
+                catch
                 {
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Error loading image {imgPath}: {imgEx.Message}");
-                    System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] StackTrace: {imgEx.StackTrace}");
-                    
-                    if (img != null)
-                    {
-                        try { img.Dispose(); } catch { }
-                        img = null;
-                    }
-                    
-                    // Clean up temporary PNG file if created
-                    if (tempPngPath != null && File.Exists(tempPngPath))
-                    {
-                        try
-                        {
-                            File.Delete(tempPngPath);
-                        }
-                        catch { }
-                    }
-                    
+                    // Fallback: SkiaSharp
+                    using var stream = File.OpenRead(imgPath);
+                    using var skBitmap = SKBitmap.Decode(stream);
+                    if (skBitmap == null)
+                        throw;
+
+                    tempPngPath = Path.Combine(
+                        Path.GetTempPath(),
+                        $"pdf_export_{Guid.NewGuid()}.png");
+
+                    using var image = SKImage.FromBitmap(skBitmap);
+                    using var data = image.Encode(SKEncodedImageFormat.Png, 100);
+                    using var fs = File.Create(tempPngPath);
+                    data.SaveTo(fs);
+
+                    img = XImage.FromFile(tempPngPath);
+                }
+
+                if (img == null)
+                {
                     skipped++;
                     processed++;
                     continue;
                 }
+
+                var page = doc.AddPage();
+
+                double width = img.PixelWidth;
+                double height = img.PixelHeight;
+
+                double hRes = img.HorizontalResolution > 0 ? img.HorizontalResolution : 72;
+                double vRes = img.VerticalResolution > 0 ? img.VerticalResolution : 72;
+
+                page.Width = width * 72 / hRes;
+                page.Height = height * 72 / vRes;
+
+                using var gfx = XGraphics.FromPdfPage(page);
+                gfx.DrawImage(img, 0, 0, page.Width, page.Height);
+
+                img.Dispose();
+
+                if (tempPngPath != null && File.Exists(tempPngPath))
+                    File.Delete(tempPngPath);
             }
-            catch (Exception ex)
+            catch
             {
-                System.Diagnostics.Debug.WriteLine($"[GeneratePdfWithProgress] Unexpected error processing {imgPath}: {ex.Message}");
                 skipped++;
                 processed++;
                 continue;
             }
 
             processed++;
-            double progress = (double)processed / totalImages;
 
+            double progress = (double)processed / totalImages;
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 PdfProgressBar.Progress = progress;
-                ProgressLabel.Text = $"{(int)(progress * 100)}% ({processed} of {totalImages} photos)";
-            });
-
-            await Task.Delay(50);
-        }
-
-        if (skipped > 0)
-        {
-            await MainThread.InvokeOnMainThreadAsync(async () =>
-            {
-                await DisplayAlert("Warning", $"{skipped} photo(s) could not be added to the PDF.", "OK");
+                ProgressLabel.Text =
+                    $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
             });
         }
-
-        if (doc.PageCount == 0)
+        catch
         {
-            doc.Close();
-            throw new Exception("No photos could be added to the PDF. Check if the images are valid.");
+            skipped++;
+            processed++;
         }
+    }
 
-        await MainThread.InvokeOnMainThreadAsync(() =>
-        {
-            ProgressLabel.Text = "Saving file...";
-            PdfProgressBar.Progress = 1.0;
-        });
+    doc.Save(outputPath);
+}
 
-        doc.Save(outputPath);
-        doc.Close();
+                using var gfx = PdfSharpCore.Drawing.XGraphics.FromPdfPage(page);
+                gfx.DrawImage(img, 0, 0);
+
+await MainThread.InvokeOnMainThreadAsync(() =>
+{
+    PdfProgressBar.Progress = progress;
+    ProgressLabel.Text =
+        $"{(int)(progress * 100)}% ({processed} van {totalImages} foto's)";
+});
+
+await Task.Delay(50);
+
+if (skipped > 0)
+{
+    await MainThread.InvokeOnMainThreadAsync(async () =>
+    {
+        await DisplayAlert(
+            "Waarschuwing",
+            $"{skipped} foto('s) konden niet worden toegevoegd aan de PDF.",
+            "OK");
+    });
+}
+
+if (doc.PageCount == 0)
+{
+    doc.Close();
+    throw new Exception("Geen foto's konden worden toegevoegd aan de PDF.");
+}
+
+await MainThread.InvokeOnMainThreadAsync(() =>
+{
+    ProgressLabel.Text = "Bestand opslaan...";
+    PdfProgressBar.Progress = 1.0;
+});
+
+doc.Save(outputPath);
+
+
+    // Reset upgrade status voor test
+    private void ResetUpgradeForTest()
+    {
+        Preferences.Remove("FastPdfUnlocked");
     }
 }
