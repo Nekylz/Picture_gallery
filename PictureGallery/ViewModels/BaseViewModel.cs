@@ -26,3 +26,4 @@ public partial class BaseViewModel : ObservableObject
     /// </summary>
     public bool IsNotBusy => !IsBusy;
 }
+

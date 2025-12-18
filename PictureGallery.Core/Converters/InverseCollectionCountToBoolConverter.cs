@@ -2,7 +2,7 @@ using System.Collections;
 using System.Globalization;
 using Microsoft.Maui.Controls;
 
-namespace PictureGallery.Converters;
+namespace PictureGallery.Core.Converters;
 
 public class InverseCollectionCountToBoolConverter : IValueConverter
 {

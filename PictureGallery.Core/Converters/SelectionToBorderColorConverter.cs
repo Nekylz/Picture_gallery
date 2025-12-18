@@ -2,7 +2,7 @@ using System.Globalization;
 using Microsoft.Maui.Controls;
 using Microsoft.Maui.Graphics;
 
-namespace PictureGallery.Converters;
+namespace PictureGallery.Core.Converters;
 
 public class SelectionToBorderColorConverter : IValueConverter
 {

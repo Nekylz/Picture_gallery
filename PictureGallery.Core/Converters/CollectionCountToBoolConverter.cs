@@ -2,21 +2,21 @@ using System.Collections;
 using System.Globalization;
 using Microsoft.Maui.Controls;
 
-namespace PictureGallery.Converters;
+namespace PictureGallery.Core.Converters;
 
-public class InverseCollectionCountToBoolConverter : IValueConverter
+public class CollectionCountToBoolConverter : IValueConverter
 {
     public object? Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is IEnumerable enumerable)
         {
-            // Check if collection is empty
+            // Check if collection has any items
             foreach (var _ in enumerable)
             {
-                return false; // Has items, so don't show empty state
+                return true; // Has items
             }
         }
-        return true; // Empty or null, show empty state
+        return false; // Empty or null
     }
 
     public object? ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
