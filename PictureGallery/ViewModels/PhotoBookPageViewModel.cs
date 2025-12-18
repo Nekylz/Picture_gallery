@@ -162,13 +162,33 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                         // Verify ImageSource (should be set by DatabaseService)
                         if (photo.ImageSource == null)
                         {
-                            System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] WARNING - Photo {photo.Id} has null ImageSource, skipping");
-                            continue;
+                            System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] WARNING - Photo {photo.Id} ({photo.FileName}) has null ImageSource, attempting to initialize...");
+                            
+                            // Try to initialize ImageSource if file exists
+                            if (photo.FileExists && !string.IsNullOrEmpty(photo.FilePath))
+                            {
+                                photo.InitializeImageSource();
+                                
+                                if (photo.ImageSource == null)
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] SKIP photo {photo.Id} - Could not initialize ImageSource");
+                                    continue;
+                                }
+                                else
+                                {
+                                    System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Successfully initialized ImageSource for photo {photo.Id}");
+                                }
+                            }
+                            else
+                            {
+                                System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] SKIP photo {photo.Id} - File does not exist or path is empty");
+                                continue;
+                            }
                         }
 
                         // Add photo to the single page
                         singlePage.Photos.Add(photo);
-                        System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Added photo {photo.Id} (ImageSource={photo.ImageSource != null}) to page");
+                        System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Added photo {photo.Id} ({photo.FileName}) to page - ImageSource: {photo.ImageSource != null}, FilePath: {photo.FilePath}");
                     }
 
                     // Add the single page with all photos

@@ -101,12 +101,12 @@ public partial class PhotoBookPage : ContentPage
                 }
                 
                 // Wait for rebuild to complete before resetting flag
-                await Task.Delay(800); // Give rebuild time to complete
+                await Task.Delay(2000); // Give rebuild more time to complete
                 
                 await MainThread.InvokeOnMainThreadAsync(() =>
                 {
                     _isRefreshingCarousel = false;
-                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh complete");
+                    System.Diagnostics.Debug.WriteLine("[ForceCarouselViewRefresh] Refresh complete - flag reset");
                 });
             }
             catch (Exception ex)
@@ -296,22 +296,65 @@ public partial class PhotoBookPage : ContentPage
         
         System.Diagnostics.Debug.WriteLine("[PhotoBookPage] OnAppearing called");
         
+        // Reset flags in case they're stuck from a previous session
+        _isRebuildingLayout = false;
+        _isRefreshingCarousel = false;
+        System.Diagnostics.Debug.WriteLine("[PhotoBookPage] Reset rebuild flags");
+        
         if (ViewModel != null)
         {
             await ViewModel.LoadPhotoBookAsync();
             
-            await Task.Delay(200);
+            // Wait a bit longer to ensure visual tree is ready
+            await Task.Delay(800);
             
-            MainThread.BeginInvokeOnMainThread(() =>
+            // Try multiple times to ensure rebuild happens
+            for (int attempt = 0; attempt < 5; attempt++)
             {
-                if (ViewModel.PhotoBook != null)
+                await Task.Delay(300);
+                
+                MainThread.BeginInvokeOnMainThread(() =>
                 {
-                    System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook loaded with {ViewModel.PhotoBook.Pages.Count} page(s)");
-                    
-                    // Layout will be rebuilt via PageContainer_Loaded
-                    System.Diagnostics.Debug.WriteLine("[PhotoBookPage] Waiting for PageContainer_Loaded");
+                    if (ViewModel.PhotoBook != null && PageContainer != null)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook loaded with {ViewModel.PhotoBook.Pages.Count} page(s), attempt {attempt + 1}, Rebuilding: {_isRebuildingLayout}, Refreshing: {_isRefreshingCarousel}");
+                        
+                        // Force reset flags if they've been stuck for too long
+                        if (attempt >= 2 && (_isRebuildingLayout || _isRefreshingCarousel))
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Force resetting stuck rebuild flags (attempt {attempt + 1})");
+                            _isRebuildingLayout = false;
+                            _isRefreshingCarousel = false;
+                        }
+                        
+                        // Only trigger rebuild if we're not already rebuilding
+                        if (!_isRebuildingLayout && !_isRefreshingCarousel)
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Triggering rebuild after load (attempt {attempt + 1})");
+                            ForceCarouselViewRefresh();
+                        }
+                        else
+                        {
+                            System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Rebuild already in progress, skipping attempt {attempt + 1}");
+                        }
+                    }
+                    else
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] PhotoBook or PageContainer not ready yet (attempt {attempt + 1}) - PhotoBook: {ViewModel?.PhotoBook != null}, PageContainer: {PageContainer != null}");
+                    }
+                });
+                
+                // If rebuild was successful, break out of loop
+                if (attempt > 1)
+                {
+                    await Task.Delay(200); // Give rebuild time to complete
+                    if (!_isRefreshingCarousel && !_isRebuildingLayout)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"[PhotoBookPage] Rebuild completed, breaking out of loop");
+                        break;
+                    }
                 }
-            });
+            }
         }
     }
 
@@ -608,7 +651,7 @@ public partial class PhotoBookPage : ContentPage
             {
                 // Always reset the rebuild flag after a delay to ensure all SizeChanged events have been processed
                 // This prevents immediate SizeChanged-triggered rebuilds after we finish
-                Task.Delay(1000).ContinueWith(_ =>
+                Task.Delay(2000).ContinueWith(_ =>
                 {
                     MainThread.BeginInvokeOnMainThread(() =>
                     {
