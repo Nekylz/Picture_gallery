@@ -83,10 +83,10 @@ public class PhotoItem : INotifyPropertyChanged
 
     // Berekende properties
     [Ignore]
-    public string DimensionsText => $"Afmetingen: {Width} x {Height}";
+    public string DimensionsText => $"Dimensions: {Width} x {Height}";
 
     [Ignore]
-    public string FileSizeText => $"Bestandsgrootte: {FileSizeMb:F1} MB";
+    public string FileSizeText => $"File Size: {FileSizeMb:F1} MB";
 
     [Ignore]
     public string CoordinatesText =>
@@ -229,7 +229,7 @@ public class PhotoItem : INotifyPropertyChanged
     /// Geeft een gebruiksvriendelijke datum string terug
     /// </summary>
     [Ignore]
-    public string CreatedDateDisplay => "Geïmporteerd: " + CreatedDate.ToString("dd MMM yyyy HH:mm");
+    public string CreatedDateDisplay => "Imported: " + CreatedDate.ToString("dd MMM yyyy HH:mm");
 
     /// <summary>
     /// Controleert of de foto labels heeft
