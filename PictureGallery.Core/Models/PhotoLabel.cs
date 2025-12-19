@@ -33,3 +33,4 @@ public class PhotoLabel
     public string TrimmedLabelText => LabelText?.Trim() ?? string.Empty;
 }
 
+

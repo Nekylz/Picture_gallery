@@ -30,3 +30,4 @@ public class RatingToColorConverter : IValueConverter
 }
 
 
+
