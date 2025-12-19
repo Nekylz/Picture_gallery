@@ -7,7 +7,7 @@ using SQLite;
 namespace PictureGallery.Core.Models;
 
 /// <summary>
-/// Representeert een individuele pagina binnen een PhotoBook
+/// Represents a single photo item in a photo book page.
 /// </summary>
 public class PhotoBookPageModel
 {
@@ -16,7 +16,7 @@ public class PhotoBookPageModel
 }
 
 /// <summary>
-/// Database model voor PhotoBook met metadata (naam, beschrijving, datum, etc.)
+/// Database model for PhotoBook with metadata (name, description, date, etc.)
 /// </summary>
 [Table("PhotoBooks")]
 public class PhotoBook : INotifyPropertyChanged
@@ -36,11 +36,11 @@ public class PhotoBook : INotifyPropertyChanged
 
     public DateTime UpdatedDate { get; set; } = DateTime.Now;
 
-    // Runtime property - niet opgeslagen in database
+    // Runtime property - not stored in database
     [Ignore]
     public ObservableCollection<PhotoBookPageModel> Pages { get; } = new();
 
-    // Computed properties voor UI
+    // Computed properties for UI
     [Ignore]
     public int TotalPhotos
     {

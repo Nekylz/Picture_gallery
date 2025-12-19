@@ -3,6 +3,11 @@ using PdfSharpCore.Pdf;
 
 public static class ImageToPdfConverter
 {
+    /// <summary>
+    /// Converts an array of image file paths to a single PDF file.
+    /// </summary>
+    /// <param name="images"></param>
+    /// <param name="outputPdf"></param>
     public static void ImagesToPdf(string[] images, string outputPdf)
     {
         // Create a new empty PDF document

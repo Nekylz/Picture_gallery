@@ -4,8 +4,8 @@ using System.IO;
 namespace PictureGallery.Tests.Helpers;
 
 /// <summary>
-/// Base class voor alle tests die file system operaties nodig hebben
-/// Zorgt voor cleanup van test data na elke test
+/// Base class for all tests that require file system operations
+/// Ensures cleanup of test data after each test
 /// </summary>
 public abstract class TestBase : IDisposable
 {
@@ -14,7 +14,7 @@ public abstract class TestBase : IDisposable
 
     protected TestBase()
     {
-        // Maak een unieke test directory aan in temp folder
+        // Create a unique test directory in temp folder
         TestDataDirectory = Path.Combine(
             Path.GetTempPath(), 
             $"PictureGalleryTests_{Guid.NewGuid()}"
@@ -24,7 +24,7 @@ public abstract class TestBase : IDisposable
     }
 
     /// <summary>
-    /// Cleanup: verwijder alle test data na de test
+    /// Cleanup: delete all test data after the test
     /// </summary>
     public virtual void Dispose()
     {
@@ -36,8 +36,8 @@ public abstract class TestBase : IDisposable
             }
             catch (IOException)
             {
-                // Ignore cleanup errors - bestanden kunnen nog in gebruik zijn
-                // Ze worden uiteindelijk opgeruimd door het OS
+                // Ignore cleanup errors - files may still be in use
+                // They will eventually be cleaned up by the OS
             }
         }
     }

@@ -6,7 +6,7 @@ using Xunit;
 namespace PictureGallery.Tests.Models;
 
 /// <summary>
-/// Tests voor label operations op PhotoItem
+/// Tests for label operations on PhotoItem
 /// </summary>
 public class PhotoLabelOperationsTests
 {

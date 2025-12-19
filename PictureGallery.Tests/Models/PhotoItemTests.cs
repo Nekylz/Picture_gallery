@@ -9,7 +9,7 @@ using Xunit;
 namespace PictureGallery.Tests.Models;
 
 /// <summary>
-/// Tests voor PhotoItem model uit PictureGallery.Core
+/// Tests for PhotoItem model in PictureGallery.Core
 /// </summary>
 public class PhotoItemTests : TestBase
 {

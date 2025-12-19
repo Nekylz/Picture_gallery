@@ -20,7 +20,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt de database connectie op, maakt deze aan als deze nog niet bestaat
+    /// Retrieves the SQLite database connection, initializing it if necessary
     /// </summary>
     private async Task<SQLiteAsyncConnection> GetDatabaseAsync()
     {
@@ -30,7 +30,7 @@ public class DatabaseService
         await _initLock.WaitAsync();
         try
         {
-            // Dubbele controle na het verkrijgen van de lock
+            // Double-check after acquiring the lock
         if (_database != null)
             return _database;
 
@@ -45,14 +45,14 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Initialiseert de database en maakt tabellen aan als ze nog niet bestaan
+    /// Initializes the database and creates tables if they don't exist
     /// </summary>
     private async Task InitializeDatabaseAsync()
     {
         if (_database == null)
             return;
 
-        // Maak tabellen aan als ze nog niet bestaan
+        // Create tables if they don't exist
         await _database.CreateTableAsync<PhotoItem>();
         await _database.CreateTableAsync<PhotoLabel>();
         await _database.CreateTableAsync<PhotoBook>();
@@ -81,49 +81,46 @@ public class DatabaseService
         System.Diagnostics.Debug.WriteLine($"Database initialized at: {_databasePath}");
     }
 
-    // ========== FOTO OPERATIES ==========
-
     /// <summary>
-    /// Voegt een nieuwe foto toe aan de database
+    /// add a new photo to the database
     /// </summary>
     public async Task<int> AddPhotoAsync(PhotoItem photo)
     {
         var db = await GetDatabaseAsync();
         photo.CreatedDate = DateTime.Now;
         var result = await db.InsertAsync(photo);
-        // InsertAsync retourneert het aantal aangepaste rijen, maar met AutoIncrement
-        // wordt de Id property automatisch ingesteld op het photo object
+        // InsertAsync returns the number of rows added (1 if successful)
         System.Diagnostics.Debug.WriteLine($"Photo saved to database: Id={photo.Id}, FileName={photo.FileName}, FilePath={photo.FilePath}");
         return photo.Id;
     }
 
     /// <summary>
-    /// Haalt alle foto's op uit de database (sluit foto's uit die alleen in PhotoBooks zitten)
+    /// Retrieves all photos from the database (excludes photos that are only in PhotoBooks)
     /// </summary>
     public async Task<List<PhotoItem>> GetAllPhotosAsync()
     {
         var db = await GetDatabaseAsync();
-        // Haal alleen foto's op die NIET in een PhotoBook zitten (PhotoBookId is null of 0)
+        // Only retrieve photos that are NOT in a PhotoBook (PhotoBookId is null or 0)
         var photos = await db.Table<PhotoItem>()
             .Where(p => p.PhotoBookId == null || p.PhotoBookId == 0)
             .OrderByDescending(p => p.CreatedDate)
             .ToListAsync();
         
         System.Diagnostics.Debug.WriteLine($"Loaded {photos.Count} photos from database");
-        
-        // Laad labels en initialiseer ImageSource voor elke foto
-        // Filter foto's uit die niet geladen kunnen worden
+
+        // Load labels and initialize ImageSource for each photo
+        // Filter out photos that cannot be loaded
         var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
-            
-            // Stel alleen ImageSource in als bestand bestaat
+
+            // Only set ImageSource if file exists
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
-                
-                // Voeg alleen foto's toe met geldige ImageSource
+
+                // Only add photos with valid ImageSource
                 if (photo.ImageSource != null)
                 {
                     System.Diagnostics.Debug.WriteLine($"Photo loaded: Id={photo.Id}, FileName={photo.FileName}, FileExists={photo.FileExists}, ImageSource={photo.ImageSource != null}");
@@ -144,7 +141,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt een foto op basis van ID op
+    /// Retrieves a photo by its ID
     /// </summary>
     public async Task<PhotoItem?> GetPhotoByIdAsync(int id)
     {
@@ -154,8 +151,8 @@ public class DatabaseService
         if (photo != null)
         {
             await LoadLabelsForPhotoAsync(photo);
-            
-            // Stel alleen ImageSource in als bestand bestaat
+
+            // Set all properties and ImageSource if file exists    
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
@@ -166,7 +163,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Werkt een bestaande foto bij
+    /// Updates an existing photo
     /// </summary>
     public async Task<int> UpdatePhotoAsync(PhotoItem photo)
     {
@@ -175,16 +172,16 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een foto, alle labels ervan, en het bestand van de schijf
+    /// Deletes a photo, all its labels, and the file from disk
     /// </summary>
     public async Task<int> DeletePhotoAsync(PhotoItem photo)
     {
         var db = await GetDatabaseAsync();
-        
-        // Verwijder eerst alle labels voor deze foto
+
+        // First, delete all labels for this photo
         await db.Table<PhotoLabel>().DeleteAsync(l => l.PhotoId == photo.Id);
-        
-        // Verwijder het fotobestand van de schijf
+
+        // Remove the photo file from disk
         if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
         {
             try
@@ -195,11 +192,11 @@ public class DatabaseService
             catch (Exception ex)
             {
                 System.Diagnostics.Debug.WriteLine($"DeletePhotoAsync: Error deleting file {photo.FilePath}: {ex.Message}");
-                // Ga door met database verwijdering zelfs als bestandsverwijdering faalt
+                // Continue with database deletion even if file deletion fails
             }
         }
-        
-        // Verwijder de foto uit de database
+
+        // Remove the photo from the database
         var result = await db.DeleteAsync(photo);
         System.Diagnostics.Debug.WriteLine($"DeletePhotoAsync: Deleted photo {photo.Id} from database");
         
@@ -207,43 +204,42 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een foto op basis van ID
+    /// Deletes a photo by its ID
     /// </summary>
     public async Task<int> DeletePhotoByIdAsync(int id)
     {
         var db = await GetDatabaseAsync();
-        
-        // Verwijder eerst alle labels voor deze foto
+
+        // First, delete all labels for this photo
         await db.Table<PhotoLabel>().DeleteAsync(l => l.PhotoId == id);
-        
-        // Verwijder de foto
+
+        // Remove the photo
         return await db.Table<PhotoItem>().DeleteAsync(p => p.Id == id);
     }
 
-    // ========== LABEL OPERATIES ==========
 
     /// <summary>
-    /// Voegt een label toe aan een foto (hoofdletterongevoelig)
-    /// Retourneert het label ID als succesvol, of 0 als label al bestaat
+    /// Adds a label to a photo if it doesn't already exist (case-insensitive)
+    /// Returns the label ID if successful, or 0 if the label already exists
     /// </summary>
     public async Task<int> AddLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
-        
-        // Haal alle labels voor deze foto op en controleer hoofdletterongevoelig
+
+        // Retrieve all labels for this photo and check case-insensitive    
         var existingLabels = await db.Table<PhotoLabel>()
             .Where(l => l.PhotoId == photoId)
             .ToListAsync();
 
-        // Controleer of label al bestaat (hoofdletterongevoelig)
-        // Gebruik StringComparison.OrdinalIgnoreCase voor case-insensitive vergelijking
+        // Check if label already exists (case-insensitive)
+        // Use StringComparison.OrdinalIgnoreCase for case-insensitive comparison
         var existingLabel = existingLabels
             .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
 
         if (existingLabel != null)
         {
             System.Diagnostics.Debug.WriteLine($"Label '{labelText}' already exists for photo {photoId} (existing: '{existingLabel.LabelText}')");
-            return 0; // Label bestaat al (hoofdletterongevoelig)
+            return 0; // Label already exists (case-insensitive)
         }
 
         var label = new PhotoLabel
@@ -255,14 +251,14 @@ public class DatabaseService
 
         var result = await db.InsertAsync(label);
         System.Diagnostics.Debug.WriteLine($"Label '{labelText}' added successfully with ID: {label.Id}, InsertAsync returned: {result}");
-        
-        // Retourneer het label ID (label.Id wordt ingesteld door InsertAsync voor AutoIncrement)
-        // Als beide 0 zijn, retourneer 0 om failure aan te geven (niet 1)
+
+        // Return the label ID (label.Id is set by InsertAsync for AutoIncrement)
+        // If both are 0, return 0 to indicate failure (not 1)
         return label.Id > 0 ? label.Id : result;
     }
 
     /// <summary>
-    /// Haalt alle labels op voor een specifieke foto
+    /// Retrieves all labels for a specific photo
     /// </summary>
     public async Task<List<PhotoLabel>> GetLabelsForPhotoAsync(int photoId)
     {
@@ -274,15 +270,15 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Laadt labels in de Labels collectie van een foto
+    /// Loads labels into the Labels collection of a photo
     /// </summary>
     public async Task LoadLabelsForPhotoAsync(PhotoItem photo)
     {
         try
         {
             var labels = await GetLabelsForPhotoAsync(photo.Id);
-            
-            // Clear en add op main thread voor thread safety met ObservableCollection
+
+            // Clear and add on main thread for thread safety with ObservableCollection
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 photo.Labels.Clear();
@@ -295,7 +291,7 @@ public class DatabaseService
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"Error loading labels for photo {photo.Id}: {ex.Message}");
-            // Zet lege collectie bij error
+            // Set empty collection on error
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 photo.Labels.Clear();
@@ -304,19 +300,19 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een label van een foto (hoofdletterongevoelig)
+    /// Removes a label from a photo (case-insensitive)
     /// </summary>
     public async Task<int> RemoveLabelAsync(int photoId, string labelText)
     {
         var db = await GetDatabaseAsync();
-        
-        // Haal alle labels voor deze foto op
+
+        // Retrieve all labels for this photo
         var labels = await db.Table<PhotoLabel>()
             .Where(l => l.PhotoId == photoId)
             .ToListAsync();
-        
-        // Zoek label hoofdletterongevoelig
-        // Gebruik StringComparison.OrdinalIgnoreCase voor case-insensitive vergelijking
+
+        // Find label case-insensitively
+        // Use StringComparison.OrdinalIgnoreCase for case-insensitive comparison
         var labelToDelete = labels
             .FirstOrDefault(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase));
         
@@ -329,7 +325,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een label van alle foto's en uit de database
+    /// Removes a label from all photos and from the database
     /// </summary>
     /// <param name="labelText"></param>
     /// <returns></returns>
@@ -337,7 +333,7 @@ public class DatabaseService
     {
         var db = await GetDatabaseAsync();
 
-        // Haal alle labels op en filter hoofdletterongevoelig
+        // Retrieve all labels and filter case-insensitively
         var allLabels = await db.Table<PhotoLabel>().ToListAsync();
         var matchingLabels = allLabels
             .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
@@ -346,7 +342,7 @@ public class DatabaseService
         if (!matchingLabels.Any())
             return 0;
 
-        // Verwijder het label van alle foto's door elke matching label te verwijderen
+        // Remove the label from all photos by deleting each matching label
         int deletedCount = 0;
         foreach (var label in matchingLabels)
         {
@@ -356,7 +352,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een label op basis van ID
+    /// Removes a label based on ID
     /// </summary>
     public async Task<int> RemoveLabelByIdAsync(int labelId)
     {
@@ -365,18 +361,18 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt alle unieke labels op van alle foto's (hoofdletterongevoelig distinct)
+    /// Retrieves all unique labels from all photos (case-insensitive distinct)
     /// </summary>
     public async Task<List<string>> GetAllUniqueLabelsAsync()
     {
         var db = await GetDatabaseAsync();
         var labels = await db.Table<PhotoLabel>().ToListAsync();
-        
-        // Groepeer op hoofdletterongevoelige label tekst en neem het eerste voorkomen
-        // Gebruik StringComparer.OrdinalIgnoreCase voor case-insensitive groepering
+
+        // Group by case-insensitive label text and take the first occurrence
+        // Use StringComparer.OrdinalIgnoreCase for case-insensitive grouping
         var uniqueLabels = labels
             .GroupBy(l => l.LabelText, StringComparer.OrdinalIgnoreCase)
-            .Select(g => g.First().LabelText) // Behoud originele hoofdletters van eerste voorkomen
+            .Select(g => g.First().LabelText) // Preserve original casing of first occurrence
             .OrderBy(l => l, StringComparer.OrdinalIgnoreCase)
             .ToList();
         
@@ -384,14 +380,14 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt alle foto's op met een specifiek label (hoofdletterongevoelig)
+    /// Retrieves all photos with a specific label (case-insensitive)
     /// </summary>
     public async Task<List<PhotoItem>> GetPhotosByLabelAsync(string labelText)
     {
         var db = await GetDatabaseAsync();
-        
-        // Haal alle labels op en filter hoofdletterongevoelig
-        // We doen dit in memory omdat SQLite case-sensitive is en we case-insensitive willen filteren
+
+        // Retrieve all labels and filter case-insensitively
+        // We do this in memory because SQLite is case-sensitive and we want to filter case-insensitively
         var allLabels = await db.Table<PhotoLabel>().ToListAsync();
         var matchingLabels = allLabels
             .Where(l => string.Equals(l.LabelText, labelText, StringComparison.OrdinalIgnoreCase))
@@ -402,25 +398,25 @@ public class DatabaseService
         if (!photoIds.Any())
             return new List<PhotoItem>();
 
-        // Haal foto's op met die IDs, gesorteerd op nieuwste eerst
+        // Retrieve photos with those IDs, sorted by newest first
         var photos = await db.Table<PhotoItem>()
             .Where(p => photoIds.Contains(p.Id))
             .OrderByDescending(p => p.CreatedDate)
             .ToListAsync();
 
-        // Laad labels en initialiseer ImageSource voor elke foto
-        // Filter foto's uit die niet geladen kunnen worden
+        // Load labels and initialize ImageSource for each photo
+        // Filter out photos that cannot be loaded
         var validPhotos = new List<PhotoItem>();
         foreach (var photo in photos)
         {
             await LoadLabelsForPhotoAsync(photo);
-            
-            // Stel alleen ImageSource in als bestand bestaat
+
+            // Set ImageSource only if file exists
             if (photo.FileExists)
             {
                 photo.InitializeImageSource();
-                
-                // Voeg alleen foto's toe met geldige ImageSource
+
+                // Add only photos with valid ImageSource
                 if (photo.ImageSource != null)
                 {
                     validPhotos.Add(photo);
@@ -431,47 +427,45 @@ public class DatabaseService
         return validPhotos;
     }
 
-    // ========== UTILITEIT METHODES ==========
-
     /// <summary>
-    /// Haalt het totaal aantal foto's op (sluit foto's in PhotoBooks uit)
+    /// Retrieves the total number of photos (excludes photos in PhotoBooks)
     /// </summary>
     public async Task<int> GetPhotoCountAsync()
     {
         var db = await GetDatabaseAsync();
-        // Tel alleen foto's die NIET in een PhotoBook zitten (PhotoBookId is null of 0)
+        // Count only photos that are NOT in a PhotoBook (PhotoBookId is null or 0)
         return await db.Table<PhotoItem>()
             .Where(p => p.PhotoBookId == null || p.PhotoBookId == 0)
             .CountAsync();
     }
 
     /// <summary>
-    /// Haalt het totaal aantal foto's op die in PhotoBooks zitten
+    /// Retrieves the total number of photos that are in PhotoBooks
     /// </summary>
     public async Task<int> GetPhotoBookPhotoCountAsync()
     {
         var db = await GetDatabaseAsync();
-        // Tel alleen foto's die WEL in een PhotoBook zitten (PhotoBookId is niet null en niet 0)
+        // Count only photos that are in a PhotoBook (PhotoBookId is not null and not 0)
         return await db.Table<PhotoItem>()
             .Where(p => p.PhotoBookId != null && p.PhotoBookId != 0)
             .CountAsync();
     }
 
     /// <summary>
-    /// Verwijdert alle foto's uit de database (gebruik met voorzichtigheid!)
+    /// Deletes all photos from the database (use with caution!)
     /// </summary>
     public async Task DeleteAllPhotosAsync()
     {
         var db = await GetDatabaseAsync();
-        // Verwijder eerst alle labels
+        // First delete all labels
         await db.DeleteAllAsync<PhotoLabel>();
-        // Verwijder daarna alle foto's
+        // Then delete all photos
         await db.DeleteAllAsync<PhotoItem>();
         System.Diagnostics.Debug.WriteLine("All photos deleted from database");
     }
 
     /// <summary>
-    /// Wist alle data uit de database (gebruik met voorzichtigheid!)
+    /// Deletes all data from the database (photos, labels, photobooks)
     /// </summary>
     public async Task ClearAllDataAsync()
     {
@@ -481,10 +475,9 @@ public class DatabaseService
         await db.DeleteAllAsync<PhotoBook>();
     }
 
-    // ========== FOTOBOEK OPERATIES ==========
 
     /// <summary>
-    /// Voegt een nieuwe PhotoBook toe aan de database
+    /// Adds a new PhotoBook to the database
     /// </summary>
     public async Task<int> AddPhotoBookAsync(PhotoBook photoBook)
     {
@@ -497,7 +490,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt alle PhotoBooks op uit de database
+    /// Retrieves all PhotoBooks from the database
     /// </summary>
     public async Task<List<PhotoBook>> GetAllPhotoBooksAsync()
     {
@@ -509,7 +502,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt een PhotoBook op basis van ID op
+    /// Retrieves a PhotoBook by its ID
     /// </summary>
     public async Task<PhotoBook?> GetPhotoBookByIdAsync(int id)
     {
@@ -518,7 +511,7 @@ public class DatabaseService
     }
     
     /// <summary>
-    /// Haalt de eerste foto op die bij een PhotoBook hoort (voor thumbnail)
+    /// Retrieves the first photo that belongs to a PhotoBook (for thumbnail)
     /// </summary>
     public async Task<PhotoItem?> GetFirstPhotoByPhotoBookIdAsync(int photoBookId)
     {
@@ -537,40 +530,40 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt alle foto's op die bij een PhotoBook horen
+    /// Retrieves all photos that belong to a PhotoBook
     /// </summary>
     public async Task<List<PhotoItem>> GetPhotosByPhotoBookIdAsync(int photoBookId)
     {
         System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] START - PhotoBookId: {photoBookId}");
         
         var db = await GetDatabaseAsync();
-        
-        // Stap 1: Laad foto's uit database
+
+        // Step 1: Load photos from database
         var photos = await db.Table<PhotoItem>()
             .Where(p => p.PhotoBookId == photoBookId)
             .OrderBy(p => p.CreatedDate)
             .ToListAsync();
         
         System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] Found {photos.Count} photos in database for PhotoBook {photoBookId}");
-        
-        // Stap 2: Laad labels en initialiseer ImageSource voor elke foto
+
+        // Step 2: Load labels and initialize ImageSource for each photo
         var validPhotos = new List<PhotoItem>();
         
         foreach (var photo in photos)
         {
             System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] Processing photo {photo.Id}: FileName={photo.FileName}, FilePath={photo.FilePath}");
             
-            // Laad labels
+            // Load labels
             await LoadLabelsForPhotoAsync(photo);
             
-            // Controleer of bestand bestaat
+            // Check if file exists
             if (!photo.FileExists)
             {
                 System.Diagnostics.Debug.WriteLine($"[GetPhotosByPhotoBookIdAsync] SKIP photo {photo.Id} - File does not exist at path: {photo.FilePath}");
                 continue;
             }
-            
-            // Initialiseer ImageSource (dit is cruciaal voor UI weergave)
+
+            // Initialize ImageSource (this is crucial for UI display)
             try
             {
                 photo.InitializeImageSource();
@@ -597,7 +590,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Werkt een bestaande PhotoBook bij
+    /// Updates an existing PhotoBook
     /// </summary>
     public async Task<int> UpdatePhotoBookAsync(PhotoBook photoBook)
     {
@@ -607,13 +600,13 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een PhotoBook uit de database en alle foto's die erbij horen
+    /// Deletes a PhotoBook from the database and all associated photos
     /// </summary>
     public async Task<int> DeletePhotoBookAsync(PhotoBook photoBook)
     {
         var db = await GetDatabaseAsync();
-        
-        // Verwijder eerst alle foto's die bij dit PhotoBook horen
+
+        // First delete all photos associated with this PhotoBook
         var photos = await db.Table<PhotoItem>()
             .Where(p => p.PhotoBookId == photoBook.Id)
             .ToListAsync();
@@ -622,10 +615,10 @@ public class DatabaseService
         
         foreach (var photo in photos)
         {
-            // Verwijder eerst labels
+            // First delete labels
             await db.Table<PhotoLabel>().DeleteAsync(l => l.PhotoId == photo.Id);
-            
-            // Verwijder het fotobestand van de schijf
+
+            // Delete the photo file from disk
             if (!string.IsNullOrEmpty(photo.FilePath) && File.Exists(photo.FilePath))
             {
                 try
@@ -638,12 +631,12 @@ public class DatabaseService
                     System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Error deleting file {photo.FilePath}: {ex.Message}");
                 }
             }
-            
-            // Verwijder de foto uit de database
+
+            // Delete the photo from the database
             await db.DeleteAsync(photo);
         }
-        
-        // Verwijder tenslotte het PhotoBook zelf
+
+        // Finally delete the PhotoBook itself
         var result = await db.DeleteAsync(photoBook);
         System.Diagnostics.Debug.WriteLine($"DeletePhotoBookAsync: Deleted PhotoBook {photoBook.Id}");
         
@@ -651,7 +644,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Verwijdert een PhotoBook op basis van ID
+    /// Deletes a PhotoBook based on ID
     /// </summary>
     public async Task<int> DeletePhotoBookByIdAsync(int id)
     {
@@ -660,7 +653,7 @@ public class DatabaseService
     }
 
     /// <summary>
-    /// Haalt het totaal aantal PhotoBooks op
+    /// Retrieves the total number of PhotoBooks
     /// </summary>
     public async Task<int> GetPhotoBookCountAsync()
     {

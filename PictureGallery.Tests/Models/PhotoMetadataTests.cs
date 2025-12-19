@@ -6,7 +6,7 @@ using Xunit;
 namespace PictureGallery.Tests.Models;
 
 /// <summary>
-/// Tests voor photo metadata viewing functionaliteit
+/// Tests for photo metadata viewing functionality
 /// </summary>
 public class PhotoMetadataTests
 {

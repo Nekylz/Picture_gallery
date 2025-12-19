@@ -5,30 +5,30 @@ using SkiaSharp;
 namespace PictureGallery.Tests.Helpers;
 
 /// <summary>
-/// Helper methods voor het creëren van test data
+/// Helper methods for creating test data
 /// </summary>
 public static class TestHelpers
 {
     /// <summary>
-    /// Maakt een test image bestand aan met opgegeven afmetingen
+    /// Creates a test image file with specified dimensions
     /// </summary>
     public static string CreateTestImageFile(string directory, string fileName = "test.jpg", int width = 100, int height = 100)
     {
         var filePath = Path.Combine(directory, fileName);
-        
-        // Maak een eenvoudige test image met SkiaSharp
+
+        // Create a simple test image with SkiaSharp
         using (var surface = SKSurface.Create(new SKImageInfo(width, height)))
         {
             var canvas = surface.Canvas;
             canvas.Clear(SKColors.Blue);
-            
-            // Teken iets simpel op de canvas
+
+            // Draw something simple on the canvas
             using (var paint = new SKPaint { Color = SKColors.White })
             {
                 canvas.DrawCircle(width / 2, height / 2, Math.Min(width, height) / 4, paint);
             }
-            
-            // Exporteer als PNG
+
+            // Export as PNG
             using (var image = surface.Snapshot())
             using (var data = image.Encode(SKEncodedImageFormat.Png, 100))
             using (var stream = File.Create(filePath))
@@ -41,7 +41,7 @@ public static class TestHelpers
     }
 
     /// <summary>
-    /// Maakt een leeg test bestand aan
+    /// Creates an empty test file
     /// </summary>
     public static string CreateEmptyTestFile(string directory, string fileName = "empty.txt")
     {
@@ -51,7 +51,7 @@ public static class TestHelpers
     }
 
     /// <summary>
-    /// Maakt een test directory aan
+    /// Creates a test directory
     /// </summary>
     public static string CreateTestDirectory(string parentDirectory, string? name = null)
     {
@@ -62,7 +62,7 @@ public static class TestHelpers
     }
 
     /// <summary>
-    /// Wacht even (voor async tests die op file system wachten)
+    /// Waits for a moment (for async tests that wait on file system)
     /// </summary>
     public static async System.Threading.Tasks.Task DelayAsync(int milliseconds = 100)
     {

@@ -47,13 +47,13 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
         _databaseService = new DatabaseService();
         Title = "Photobook Management";
 
-        // Initialiseer commando's
+        // Initialize commands
         NewPhotoBookCommand = new RelayCommand(ShowCreatePhotoBookModal);
         SelectButtonCommand = new RelayCommand(ToggleSelectionMode);
         DeleteButtonCommand = new AsyncRelayCommand(DeleteSelectedPhotoBooksAsync);
         PhotoBookTappedCommand = new AsyncRelayCommand<PhotoBook>(OnPhotoBookTappedAsync);
 
-        // Laad data bij initialisatie
+        // Load initial data
         _ = LoadPhotoBooksAsync();
         _ = UpdateStatisticsAsync();
     }
@@ -76,7 +76,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
             IsBusy = true;
             var loadedPhotoBooks = await _databaseService.GetAllPhotoBooksAsync();
 
-            // Laad thumbnails voor elk fotoboek
+            // Load thumbnails for each photo book
             foreach (var photoBook in loadedPhotoBooks)
             {
                 await LoadThumbnailForPhotoBookAsync(photoBook);
@@ -108,7 +108,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
         try
         {
             var photoBookCount = await _databaseService.GetPhotoBookCountAsync();
-            // Tel alleen foto's die in PhotoBooks zitten (niet alle foto's in de applicatie)
+            // Count only photos that are in PhotoBooks (not all photos in the application)
             var photoCount = await _databaseService.GetPhotoBookPhotoCountAsync();
 
             await MainThread.InvokeOnMainThreadAsync(() =>
@@ -127,22 +127,21 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
     {
         try
         {
-            // Haal eerste foto op voor dit fotoboek (geoptimaliseerd voor thumbnail laden)
+            // Get the first photo for this photo book (optimized for thumbnail loading)
             var firstPhoto = await _databaseService.GetFirstPhotoByPhotoBookIdAsync(photoBook.Id);
             
             if (firstPhoto != null && firstPhoto.ImageSource != null)
             {
-                // Zet thumbnail naar eerste foto's ImageSource
+                // Set thumbnail to the first photo's ImageSource
                 photoBook.ThumbnailImage = firstPhoto.ImageSource;
             }
             else
             {
-                // Geen foto's, thumbnail blijft null (zal placeholder tonen)
+                // No photos, thumbnail remains null (will show placeholder)
                 photoBook.ThumbnailImage = null;
             }
         }
-        catch (Exception ex)
-        {
+        catch (Exception ex) { 
             System.Diagnostics.Debug.WriteLine($"Error loading thumbnail for PhotoBook {photoBook.Id}: {ex.Message}");
             photoBook.ThumbnailImage = null;
         }
@@ -184,7 +183,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
 
             await _databaseService.AddPhotoBookAsync(newPhotoBook);
 
-            // Ververs de lijst
+            // Refresh the list 
             await LoadPhotoBooksAsync();
             await UpdateStatisticsAsync();
         }
@@ -201,7 +200,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
 
         if (!IsSelectionMode)
         {
-            // Verlaat selectie mode - wis alle selecties
+            // Exit selection mode - clear all selections
             foreach (var photoBook in _selectedPhotoBooks.ToList())
             {
                 photoBook.IsSelected = false;
@@ -238,7 +237,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
 
         if (IsSelectionMode)
         {
-            // Toggle selectie
+            // Toggle selection 
             photoBook.IsSelected = !photoBook.IsSelected;
 
             if (photoBook.IsSelected)
@@ -254,7 +253,7 @@ public partial class PhotoBookManagementViewModel : BaseViewModel
         }
         else
         {
-            // Normale mode - navigeer naar PhotoBookPage
+            // Normal mode. navigate to PhotoBookPage
             try
             {
                 var photoBookPage = new PhotoBookPage(photoBook.Id);

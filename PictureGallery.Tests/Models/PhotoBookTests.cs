@@ -7,7 +7,7 @@ using Xunit;
 namespace PictureGallery.Tests.Models;
 
 /// <summary>
-/// Tests voor PhotoBook model
+/// Tests for PhotoBook model
 /// </summary>
 public class PhotoBookTests
 {

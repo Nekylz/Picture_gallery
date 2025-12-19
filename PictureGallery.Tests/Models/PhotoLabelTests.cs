@@ -5,7 +5,7 @@ using Xunit;
 namespace PictureGallery.Tests.Models;
 
 /// <summary>
-/// Tests voor PhotoLabel model
+/// Tests for PhotoLabel model
 /// </summary>
 public class PhotoLabelTests
 {

@@ -17,7 +17,7 @@ namespace PictureGallery.ViewModels;
 
 public partial class PhotoBookPageViewModel : BaseViewModel
 {
-    // MaxPhotosPerPage verwijderd - alle foto's op één pagina
+    // MaxPhotosPerPage deleted - all photos on one page
     private static readonly string[] AllowedExtensions = { ".png", ".jpg", ".jpeg" };
 
     private readonly DatabaseService _databaseService;
@@ -46,7 +46,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
     partial void OnCurrentPagePositionChanged(int value)
     {
-        // Pagina navigatie verwijderd - alle foto's op één pagina
+        // Page navigation deleted - all photos on one page
     }
 
     public PhotoBookPageViewModel(int? photoBookId = null)
@@ -61,13 +61,13 @@ public partial class PhotoBookPageViewModel : BaseViewModel
             IsDeleteMode = true; 
             IsPdfMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
+            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
         });
         CancelDeleteModeCommand = new RelayCommand(() => 
         { 
             IsDeleteMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
+            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
         });
         DeleteSelectedPhotosCommand = new AsyncRelayCommand(DeleteSelectedPhotosAsync);
         StartPdfModeCommand = new RelayCommand(() => 
@@ -75,17 +75,17 @@ public partial class PhotoBookPageViewModel : BaseViewModel
             IsPdfMode = true; 
             IsDeleteMode = false; 
             SelectAllPhotos();
-            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
+            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
         });
         CancelPdfModeCommand = new RelayCommand(() => 
         { 
             IsPdfMode = false; 
             ClearSelections();
-            OnPropertyChanged(nameof(PhotoBook)); // Notificeer UI om te herbouwen
+            OnPropertyChanged(nameof(PhotoBook)); // Notify UI to rebuild
         });
         ExportPdfCommand = new AsyncRelayCommand(ExportPdfAsync);
         PhotoTappedCommand = new RelayCommand<PhotoItem>(OnPhotoTapped);
-        // NextPageCommand en PrevPageCommand verwijderd - alle foto's op één pagina
+        // NextPageCommand and PrevPageCommand deleted - all photos on one page
     }
 
     public ICommand AddPhotoCommand { get; }
@@ -106,7 +106,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
         {
             IsBusy = true;
 
-            // Geval 1: Geen PhotoBookId - maak leeg PhotoBook
+            // Case 1: No PhotoBookId - create empty PhotoBook
             if (!_photoBookId.HasValue)
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] No PhotoBookId, creating empty PhotoBook");
@@ -121,10 +121,10 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                 return;
             }
 
-            // Geval 2: Laad bestaand PhotoBook
+            // Case 2: Load existing PhotoBook
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Loading PhotoBook with Id: {_photoBookId.Value}");
-            
-            // Stap 1: Laad PhotoBook metadata
+
+            // Step 1: Load PhotoBook metadata
             var loadedPhotoBook = await _databaseService.GetPhotoBookByIdAsync(_photoBookId.Value);
             if (loadedPhotoBook == null)
             {
@@ -135,11 +135,11 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] PhotoBook metadata loaded: Id={loadedPhotoBook.Id}, Name={loadedPhotoBook.Name}");
 
-            // Stap 2: Laad foto's (GetPhotosByPhotoBookIdAsync retourneert nu ALLEEN foto's met geldige ImageSource)
+            // Step 2: Load photos (GetPhotosByPhotoBookIdAsync now only returns photos with valid ImageSource)
             var photos = await _databaseService.GetPhotosByPhotoBookIdAsync(_photoBookId.Value);
             System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Received {photos.Count} photos from DatabaseService (all should have valid ImageSource)");
 
-            // Stap 3: Bouw Pages structuur op main thread
+            // Step 3: Build Pages structure on main thread
             await MainThread.InvokeOnMainThreadAsync(() =>
             {
                 System.Diagnostics.Debug.WriteLine($"[LoadPhotoBookAsync] Building Pages structure on main thread");
@@ -265,7 +265,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
             IsBusy = true;
 
-            // Batch all photos first - collect them before updating UI
+            // Batch all photos first. collect them before updating UI
             var newPhotos = new List<PhotoItem>();
 
             foreach (var result in results)
@@ -372,13 +372,13 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                     updatedPhotoBook.Pages.Add(newPage);
                 }
                 
-                // Replace PhotoBook instance - this forces UI to update
+                // Replace PhotoBook instance. this forces UI to update
                 PhotoBook = updatedPhotoBook;
                 
                 // Trigger event to notify View that photos were added (this will trigger refresh)
                 PhotosAdded?.Invoke();
                 
-                // Then notify property change - only once after all updates
+                // Then notify property change. only once after all updates
                 OnPropertyChanged(nameof(PhotoBook));
                 
                 System.Diagnostics.Debug.WriteLine($"[AddPhotoAsync] Photos added - Pages: {PhotoBook.Pages.Count}, Total photos: {PhotoBook.Pages.Sum(p => p.Photos.Count)}");
@@ -536,7 +536,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                     updatedPhotoBook.Pages.Add(newPage);
                 }
 
-                // Replace PhotoBook instance - this forces UI to update
+                // Replace PhotoBook instance. this forces UI to update
                 PhotoBook = updatedPhotoBook;
 
                 // Trigger event to notify View that photos were added
@@ -646,11 +646,11 @@ public partial class PhotoBookPageViewModel : BaseViewModel
                 }
                 updatedPhotoBook.Pages.Add(newPage);
             }
-            
-            // Replace PhotoBook instance - this forces UI to update
+
+            // Replace PhotoBook instance. this forces UI to update
             PhotoBook = updatedPhotoBook;
             
-            // Trigger refresh event first - this will set the refresh flag in the View
+            // Trigger refresh event first. this will set the refresh flag in the View
             PhotosDeleted?.Invoke();
             
             // Then notify property change
@@ -674,16 +674,16 @@ public partial class PhotoBookPageViewModel : BaseViewModel
         photo.IsSelected = !photo.IsSelected;
     }
 
-    // Removed NextPageRequested and PrevPageRequested events - all photos on one page
+    // Removed NextPageRequested and PrevPageRequested events. all photos on one page
 
     public void OnPagePositionChanged(int position)
     {
-        // Removed - all photos on one page
+        // Removed. all photos on one page
     }
 
     private void UpdateUI()
     {
-        // Removed page navigation UI updates - all photos on one page
+        // Removed page navigation UI updates. all photos on one page
     }
 
     private void ClearSelections()
@@ -716,7 +716,7 @@ public partial class PhotoBookPageViewModel : BaseViewModel
 
     private async Task<PhotoItem> CreatePhotoItemAsync(FileResult result)
     {
-        // ALWAYS copy file to app directory (never use external paths - they become inaccessible after app restart)
+        // ALWAYS copy file to app directory (never use external paths. they become inaccessible after app restart)
         var photosDirectory = Path.Combine(FileSystem.AppDataDirectory, "Photos");
         if (!Directory.Exists(photosDirectory))
         {
