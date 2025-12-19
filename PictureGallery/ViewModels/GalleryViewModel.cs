@@ -1,5 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using MetadataExtractor;
+using MetadataExtractor.Formats.Exif;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Storage;
 using PictureGallery.Models;
@@ -93,6 +95,9 @@ public partial class GalleryViewModel : BaseViewModel
 
     [ObservableProperty]
     private string overlayImportedDate = string.Empty;
+
+    [ObservableProperty]
+    private string overlayCoordinates = string.Empty;
 
     [ObservableProperty]
     private int currentPhotoRating;
@@ -308,9 +313,9 @@ public partial class GalleryViewModel : BaseViewModel
     private async Task<PhotoItem?> CreatePhotoItemAsync(FileResult result)
     {
         var photosDirectory = Path.Combine(FileSystem.AppDataDirectory, "Photos");
-        if (!Directory.Exists(photosDirectory))
+        if (!System.IO.Directory.Exists(photosDirectory))
         {
-            Directory.CreateDirectory(photosDirectory);
+            System.IO.Directory.CreateDirectory(photosDirectory);
         }
 
         var extension = Path.GetExtension(result.FileName);
@@ -449,13 +454,32 @@ public partial class GalleryViewModel : BaseViewModel
 
         var fileSizeMB = fileInfo.Length / (1024.0 * 1024.0);
 
+        var directories = ImageMetadataReader.ReadMetadata(permanentPath);
+
+        var gps = directories.OfType<GpsDirectory>().FirstOrDefault();
+
+        double latitude = 0;
+        double longitude = 0;
+
+        if (gps != null)
+        {
+            var location = gps.GetGeoLocation();
+            if (location != null)
+            {
+                latitude = location.Latitude;
+                longitude = location.Longitude;
+            }
+        }
+
         var photo = new PhotoItem
         {
             FileName = result.FileName,
             FilePath = permanentPath,
             Width = width,
             Height = height,
-            FileSizeMb = fileSizeMB
+            FileSizeMb = fileSizeMB,
+            Longitude = longitude,
+            Latitude = latitude
         };
 
         try
@@ -565,6 +589,7 @@ public partial class GalleryViewModel : BaseViewModel
                 CurrentPhotoRating = photo.Rating;
                 IsFullscreenOverlayVisible = true;
                 OverlayImportedDate = photo.CreatedDateDisplay;
+                OverlayCoordinates = photo.CoordinatesText;
             });
         }
         catch (Exception ex)
@@ -1503,9 +1528,9 @@ public partial class GalleryViewModel : BaseViewModel
             CurrentPhotoRating = value.Rating;
             // Zorg ervoor dat labels geladen zijn voordat we CurrentPhoto zetten
             // (dit wordt al gedaan in ShowPhotoOverlayAsync, maar als extra check)
-            
+
             // TODO: If photo has location data, trigger map update event
-            // MapLocationUpdateRequested?.Invoke(latitude, longitude);
+            MapLocationUpdateRequested?.Invoke(CurrentPhoto.Latitude, CurrentPhoto.Longitude);
         }
         else
         {

@@ -56,7 +56,28 @@ public class DatabaseService
         await _database.CreateTableAsync<PhotoItem>();
         await _database.CreateTableAsync<PhotoLabel>();
         await _database.CreateTableAsync<PhotoBook>();
-        
+
+        // MIGRATION: Add Latitude and Longitude columns if they don't exist
+        try
+        {
+            await _database.ExecuteAsync("ALTER TABLE Photos ADD COLUMN Latitude REAL DEFAULT 0");
+            System.Diagnostics.Debug.WriteLine("Added Latitude column to Photos table");
+        }
+        catch (Exception)
+        {
+            // Column already exists, ignore error
+        }
+
+        try
+        {
+            await _database.ExecuteAsync("ALTER TABLE Photos ADD COLUMN Longitude REAL DEFAULT 0");
+            System.Diagnostics.Debug.WriteLine("Added Longitude column to Photos table");
+        }
+        catch (Exception)
+        {
+            // Column already exists, ignore error
+        }
+
         System.Diagnostics.Debug.WriteLine($"Database initialized at: {_databasePath}");
     }
 

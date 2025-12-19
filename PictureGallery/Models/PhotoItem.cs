@@ -28,6 +28,11 @@ public class PhotoItem : INotifyPropertyChanged
 
     public double FileSizeMb { get; set; }
 
+    public double Latitude { get; set; }
+
+    public double Longitude { get; set; }
+
+
     [Indexed]
     public DateTime CreatedDate { get; set; } = DateTime.Now;
 
@@ -82,6 +87,12 @@ public class PhotoItem : INotifyPropertyChanged
 
     [Ignore]
     public string FileSizeText => $"Bestandsgrootte: {FileSizeMb:F1} MB";
+
+    [Ignore]
+    public string CoordinatesText =>
+    (Latitude != 0 || Longitude != 0)
+        ? $"Location: {Latitude:F1}, {Longitude:F1}"
+        : "Location: Not available";
 
     // Helper methodes voor database integratie
 
