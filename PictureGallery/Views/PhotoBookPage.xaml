@@ -3,7 +3,7 @@
              xmlns:converters="clr-namespace:PictureGallery.Converters"
              x:Class="PictureGallery.Views.PhotoBookPage"
              Title="Photo Book"
-             BackgroundColor="#F5F5F5"
+             BackgroundColor="#F3E1DD"
              xmlns:converters1="clr-namespace:PictureGallery.Converters"
              Shell.NavBarIsVisible="False">
 
@@ -11,10 +11,10 @@
         
         <!-- Top Toolbar -->
         <Grid Grid.Row="0">
-            <Border BackgroundColor="White"
+            <Border BackgroundColor="#F3E1DD"
                     StrokeThickness="0"
                     Padding="15"
-                    Stroke="#E0E0E0">
+                    Stroke="#C7D9B7">
                 <Grid ColumnDefinitions="Auto,*">
                     <!-- Back Button -->
                     <Border Grid.Column="0"
@@ -45,24 +45,24 @@
                         <!-- Add Photo Button -->
                     <Button Text="Add Photo"
                             Command="{Binding AddPhotoCommand}"
-                            BackgroundColor="#2196F3"
-                            TextColor="White"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
                             CornerRadius="8"
                             Padding="15,10" />
 
                     <!-- Convert to PDF Button -->
                     <Button Text="Create PDF"
                             Command="{Binding StartPdfModeCommand}"
-                            BackgroundColor="#4CAF50"
-                            TextColor="White"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
                             CornerRadius="8"
                             Padding="15,10" />
 
                     <!-- Delete Photos Button -->
                     <Button Text="Delete"
                             Command="{Binding StartDeleteModeCommand}"
-                            BackgroundColor="#F44336"
-                            TextColor="White"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
                             CornerRadius="8"
                             Padding="15,10" />
 

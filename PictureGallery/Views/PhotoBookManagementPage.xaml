@@ -4,7 +4,7 @@
              xmlns:views="clr-namespace:PictureGallery.Views"
              x:Class="PictureGallery.Views.PhotoBookManagementPage"
              Title="Photobook Management"
-             BackgroundColor="#FFF5F3"
+             BackgroundColor="#F3E1DD"
              Shell.NavBarIsVisible="False">
     <Grid>
         <ScrollView>
@@ -28,7 +28,7 @@
                                 Text="chevron_left"
                                 FontSize="28"
                                 BackgroundColor="Transparent"
-                                TextColor="Black"
+                                TextColor="#410803"
                                 Padding="0"
                                 Margin="0"
                                 HorizontalOptions="Fill"
@@ -42,14 +42,14 @@
                             <Label Text="Photobook Management"
                                    FontSize="42"
                                    FontAttributes="Bold"
-                                   TextColor="#E0E0E0"
+                                   TextColor="#410803"
                                    HorizontalOptions="Start"
                                    VerticalOptions="Start"
                                    Margin="1,1,0,0" />
                             <Label Text="Photobook Management"
                                    FontSize="42"
                                    FontAttributes="Bold"
-                                   TextColor="Black"
+                                   TextColor="#410803"
                                    HorizontalOptions="Start"
                                    VerticalOptions="Start" />
                         </Grid>
@@ -58,7 +58,7 @@
                             <Label Text="Organize and manage your photo collections"
                                    FontSize="18"
                                    FontAttributes="Bold"
-                                   TextColor="#E0E0E0"
+                                   TextColor="#410803"
                                    HorizontalOptions="Start"
                                    VerticalOptions="Start"
                                    Margin="0.5,0.5,0,0" />
@@ -77,8 +77,8 @@
                                        VerticalOptions="Center">
                         <Button x:Name="NewPhotoBookButton"
                                 Text="+ New Photobook"
-                                BackgroundColor="#007AFF"
-                                TextColor="White"
+                                BackgroundColor="#C7D9B7"
+                                TextColor="#410803"
                                 CornerRadius="8"
                                 Padding="20,12"
                                 FontSize="16"
@@ -86,8 +86,8 @@
                                 Command="{Binding NewPhotoBookCommand}" />
                         <Button x:Name="SelectButton"
                                 Text="{Binding SelectButtonText}"
-                                BackgroundColor="#EDEDED"
-                                TextColor="#333333"
+                                BackgroundColor="#C7D9B7"
+                                TextColor="#410803"
                                 CornerRadius="8"
                                 Padding="20,12"
                                 FontSize="16"
@@ -139,10 +139,10 @@
                                        Text="{Binding TotalPhotoBooks}"
                                        FontSize="20"
                                        FontAttributes="Bold"
-                                       TextColor="Black" />
+                                       TextColor="#410803" />
                                 <Label Text="Total Albums"
                                        FontSize="12"
-                                       TextColor="#666666" />
+                                       TextColor="#410803" />
                             </VerticalStackLayout>
                         </Grid>
                     </Frame>
@@ -186,10 +186,10 @@
                                        Text="{Binding TotalPhotos}"
                                        FontSize="20"
                                        FontAttributes="Bold"
-                                       TextColor="Black" />
+                                       TextColor="#410803" />
                                 <Label Text="Total Photos"
                                        FontSize="12"
-                                       TextColor="#666666" />
+                                       TextColor="#410803" />
                             </VerticalStackLayout>
                         </Grid>
                     </Frame>
@@ -378,8 +378,8 @@
                                    HorizontalTextAlignment="Center" />
                             <Button Text="+ New Photobook"
                                     Padding="20,12"
-                                    BackgroundColor="#007AFF"
-                                    TextColor="White"
+                                    BackgroundColor="#C7D9B7"
+                                    TextColor="#410803"
                                     CornerRadius="8"
                                     Command="{Binding NewPhotoBookCommand}" />
                         </VerticalStackLayout>

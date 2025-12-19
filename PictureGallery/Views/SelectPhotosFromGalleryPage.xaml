@@ -116,7 +116,7 @@
                             <Label Text="✓"
                                    FontSize="48"
                                    FontAttributes="Bold"
-                                   TextColor="White"
+                                   TextColor="#410803"
                                    HorizontalOptions="Center"
                                    VerticalOptions="Center" />
                         </Frame>
@@ -151,15 +151,15 @@
             <HorizontalStackLayout Spacing="15" HorizontalOptions="Fill">
                 <Button Text="Cancel"
                         Command="{Binding CancelCommand}"
-                        BackgroundColor="#E0E0E0"
-                        TextColor="#333333"
+                        BackgroundColor="#C7D9B7"
+                        TextColor="#410803"
                         CornerRadius="8"
                         Padding="20,10" />
                 <Button Text="Add Selected"
                         Command="{Binding AddSelectedCommand}"
                         IsEnabled="{Binding HasSelection}"
-                        BackgroundColor="#2196F3"
-                        TextColor="White"
+                        BackgroundColor="#C7D9B7"
+                        TextColor="#410803"
                         CornerRadius="8"
                         Padding="20,10" />
             </HorizontalStackLayout>
