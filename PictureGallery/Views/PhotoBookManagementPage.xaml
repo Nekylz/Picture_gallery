@@ -1,0 +1,399 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:views="clr-namespace:PictureGallery.Views"
+             x:Class="PictureGallery.Views.PhotoBookManagementPage"
+             Title="Photobook Management"
+             BackgroundColor="#F3E1DD"
+             Shell.NavBarIsVisible="False">
+    <Grid>
+        <ScrollView>
+            <VerticalStackLayout Padding="20" Spacing="20">
+                
+                <!-- HEADER SECTION -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Back Button -->
+                    <Border Grid.Column="0"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            StrokeThickness="2"
+                            Stroke="Black"
+                            BackgroundColor="Transparent"
+                            Margin="0,0,15,0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="22" />
+                        </Border.StrokeShape>
+                        <Button x:Name="BackButton"
+                                FontFamily="MaterialIcons"
+                                Text="chevron_left"
+                                FontSize="28"
+                                BackgroundColor="Transparent"
+                                TextColor="#410803"
+                                Padding="0"
+                                Margin="0"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Fill"
+                                Clicked="BackButton_Clicked" />
+                    </Border>
+                    
+                    <VerticalStackLayout Grid.Column="1" Spacing="4">
+                        <!-- Title with shadow effect for thicker appearance -->
+                        <Grid>
+                            <Label Text="Photobook Management"
+                                   FontSize="42"
+                                   FontAttributes="Bold"
+                                   TextColor="#410803"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start"
+                                   Margin="1,1,0,0" />
+                            <Label Text="Photobook Management"
+                                   FontSize="42"
+                                   FontAttributes="Bold"
+                                   TextColor="#410803"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start" />
+                        </Grid>
+                        <!-- Subtitle with shadow effect for thicker appearance -->
+                        <Grid>
+                            <Label Text="Organize and manage your photo collections"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="#410803"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start"
+                                   Margin="0.5,0.5,0,0" />
+                            <Label Text="Organize and manage your photo collections"
+                                   FontSize="18"
+                                   FontAttributes="Bold"
+                                   TextColor="#666666"
+                                   HorizontalOptions="Start"
+                                   VerticalOptions="Start" />
+                        </Grid>
+                    </VerticalStackLayout>
+                    
+                    <VerticalStackLayout Grid.Column="2"
+                                       Spacing="8"
+                                       HorizontalOptions="End"
+                                       VerticalOptions="Center">
+                        <Button x:Name="NewPhotoBookButton"
+                                Text="+ New Photobook"
+                                BackgroundColor="#C7D9B7"
+                                TextColor="#410803"
+                                CornerRadius="8"
+                                Padding="20,12"
+                                FontSize="16"
+                                HorizontalOptions="End"
+                                Command="{Binding NewPhotoBookCommand}" />
+                        <Button x:Name="SelectButton"
+                                Text="{Binding SelectButtonText}"
+                                BackgroundColor="#C7D9B7"
+                                TextColor="#410803"
+                                CornerRadius="8"
+                                Padding="20,12"
+                                FontSize="16"
+                                HorizontalOptions="End"
+                                Command="{Binding SelectButtonCommand}" />
+                        <Button x:Name="DeleteButton"
+                                Text="Delete"
+                                BackgroundColor="#FF3B30"
+                                TextColor="White"
+                                CornerRadius="8"
+                                Padding="20,12"
+                                FontSize="16"
+                                HorizontalOptions="End"
+                                IsVisible="{Binding DeleteButtonVisible}"
+                                Command="{Binding DeleteButtonCommand}" />
+                    </VerticalStackLayout>
+                </Grid>
+
+                <!-- STATISTICS SECTION -->
+                <Grid ColumnDefinitions="*,*" ColumnSpacing="12" Margin="0,10,0,0">
+                    <!-- Total Albums -->
+                    <Frame BackgroundColor="White"
+                           HasShadow="True"
+                           CornerRadius="8"
+                           Padding="16"
+                           BorderColor="#E0E0E0">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <!-- Blue Folder Icon -->
+                            <Grid WidthRequest="36" HeightRequest="36" Grid.Column="0" VerticalOptions="Center">
+                                <!-- Folder body (main rectangle) -->
+                                <Rectangle Fill="#4A90E2"
+                                          RadiusX="2"
+                                          RadiusY="2"
+                                          HorizontalOptions="Fill"
+                                          VerticalOptions="Fill"
+                                          Margin="0,8,0,0" />
+                                <!-- Folder flap (folded top part) -->
+                                <Path Data="M 2 8 L 2 3 Q 2 0 5 0 L 22 0 Q 25 0 25 3 L 25 8"
+                                      Fill="#5BA0F2"
+                                      Stroke="#357ABD"
+                                      StrokeThickness="0.5"
+                                      HorizontalOptions="Fill"
+                                      VerticalOptions="Fill" />
+                            </Grid>
+                            <VerticalStackLayout Spacing="2"
+                                                 Grid.Column="1"
+                                                 VerticalOptions="Center">
+                                <Label x:Name="TotalPhotoBooksLabel"
+                                       Text="{Binding TotalPhotoBooks}"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       TextColor="#410803" />
+                                <Label Text="Total Albums"
+                                       FontSize="12"
+                                       TextColor="#410803" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+
+                    <!-- Total Photos -->
+                    <Frame BackgroundColor="White"
+                           HasShadow="True"
+                           CornerRadius="8"
+                           Padding="16"
+                           BorderColor="#E0E0E0"
+                           Grid.Column="1">
+                        <Grid ColumnDefinitions="Auto,*" ColumnSpacing="12">
+                            <!-- Green Landscape Icon -->
+                            <Grid WidthRequest="36" HeightRequest="36" Grid.Column="0" VerticalOptions="Center">
+                                <!-- Frame border (green rounded square) -->
+                                <Rectangle Stroke="#52C41A"
+                                          Fill="Transparent"
+                                          StrokeThickness="2.5"
+                                          RadiusX="4"
+                                          RadiusY="4"
+                                          HorizontalOptions="Fill"
+                                          VerticalOptions="Fill" />
+                                <!-- Sun circle (upper left quadrant) -->
+                                <Ellipse Fill="#52C41A"
+                                        WidthRequest="7"
+                                        HeightRequest="7"
+                                        HorizontalOptions="Start"
+                                        VerticalOptions="Start"
+                                        Margin="7,7,0,0" />
+                                <!-- Mountain (lower right quadrant) - flat top -->
+                                <Path Data="M 25 27 L 29 27 L 29 23 L 31 27 L 31 29 L 25 29 Z"
+                                      Fill="#52C41A"
+                                      HorizontalOptions="End"
+                                      VerticalOptions="End"
+                                      Margin="0,0,7,7" />
+                            </Grid>
+                            <VerticalStackLayout Spacing="2"
+                                                 Grid.Column="1"
+                                                 VerticalOptions="Center">
+                                <Label x:Name="TotalPhotosLabel"
+                                       Text="{Binding TotalPhotos}"
+                                       FontSize="20"
+                                       FontAttributes="Bold"
+                                       TextColor="#410803" />
+                                <Label Text="Total Photos"
+                                       FontSize="12"
+                                       TextColor="#410803" />
+                            </VerticalStackLayout>
+                        </Grid>
+                    </Frame>
+                </Grid>
+
+                <!-- PHOTOBOOKS GRID -->
+                <CollectionView x:Name="PhotoBooksCollection"
+                                ItemsSource="{Binding PhotoBooks}"
+                                Margin="0,10,0,0"
+                                IsVisible="{Binding HasPhotoBooks}"
+                                SizeChanged="PhotoBooksCollection_SizeChanged">
+                    <CollectionView.ItemsLayout>
+                        <GridItemsLayout Orientation="Vertical"
+                                         Span="3"
+                                         HorizontalItemSpacing="16"
+                                         VerticalItemSpacing="16" />
+                    </CollectionView.ItemsLayout>
+                    <CollectionView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.GestureRecognizers>
+                                    <TapGestureRecognizer Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PhotoBookTappedCommand}"
+                                                          CommandParameter="{Binding .}" />
+                                </Grid.GestureRecognizers>
+                                <Frame x:Name="PhotoBookFrame"
+                                       BackgroundColor="{Binding IsSelected, Converter={StaticResource SelectionToBackgroundColorConverter}}"
+                                       HasShadow="True"
+                                       CornerRadius="12"
+                                       Padding="0"
+                                       BorderColor="{Binding IsSelected, Converter={StaticResource SelectionToBorderColorConverter}}">
+                                    <VerticalStackLayout Spacing="0">
+                                        <!-- THUMBNAIL IMAGE -->
+                                        <Grid HeightRequest="180"
+                                              BackgroundColor="#E5E5E5">
+                                            <!-- Selection Overlay - Enhanced visibility -->
+                                            <Frame BackgroundColor="#60007AFF"
+                                                   CornerRadius="12"
+                                                   Padding="0"
+                                                   IsVisible="{Binding IsSelected}"
+                                                   HorizontalOptions="Fill"
+                                                   VerticalOptions="Fill">
+                                                <Label Text="✓"
+                                                       FontSize="56"
+                                                       TextColor="White"
+                                                       FontAttributes="Bold"
+                                                       HorizontalOptions="Center"
+                                                       VerticalOptions="Center" />
+                                            </Frame>
+                                            <Image Source="{Binding ThumbnailImage}"
+                                                   Aspect="AspectFill"
+                                                   HorizontalOptions="Fill"
+                                                   VerticalOptions="Fill"
+                                                   IsVisible="{Binding HasThumbnail}" />
+                                            <!-- Placeholder als er geen thumbnail is - custom landscape icon -->
+                                            <Grid IsVisible="{Binding HasNoThumbnail}"
+                                                  VerticalOptions="Center"
+                                                  HorizontalOptions="Center"
+                                                  WidthRequest="64"
+                                                  HeightRequest="64">
+                                                <!-- Rounded square frame -->
+                                                <Rectangle Stroke="#808080"
+                                                          Fill="Transparent"
+                                                          StrokeThickness="2.5"
+                                                          RadiusX="5"
+                                                          RadiusY="5"
+                                                          HorizontalOptions="Fill"
+                                                          VerticalOptions="Fill" />
+                                                
+                                                <!-- Sun circle (upper left quadrant) -->
+                                                <Ellipse Fill="#808080"
+                                                        WidthRequest="11"
+                                                        HeightRequest="11"
+                                                        HorizontalOptions="Start"
+                                                        VerticalOptions="Start"
+                                                        Margin="11,11,0,0" />
+                                                
+                                                <!-- Mountain with flat top (lower right quadrant) - trapezoid shape -->
+                                                <Path Data="M 52 50 L 56 50 L 56 46 L 60 50 L 60 52 L 52 52 Z"
+                                                      Fill="#808080"
+                                                      HorizontalOptions="End"
+                                                      VerticalOptions="End"
+                                                      Margin="0,0,8,8" />
+                                            </Grid>
+                                        </Grid>
+
+                                        <!-- CONTENT -->
+                                        <VerticalStackLayout Padding="16" Spacing="8">
+                                            <Label Text="{Binding Name}"
+                                                   FontSize="18"
+                                                   FontAttributes="Bold"
+                                                   TextColor="Black"
+                                                   MaxLines="1"
+                                                   LineBreakMode="TailTruncation" />
+                                            <Label Text="{Binding Description}"
+                                                   FontSize="14"
+                                                   TextColor="#666666"
+                                                   MaxLines="2"
+                                                   LineBreakMode="TailTruncation"
+                                                   IsVisible="{Binding HasDescription}" />
+                                            <HorizontalStackLayout Spacing="8">
+                                                <!-- Calendar Icon with Date -->
+                                                <Grid WidthRequest="16" HeightRequest="16" VerticalOptions="Center">
+                                                    <!-- Calendar body (rectangle) -->
+                                                    <Rectangle Stroke="#666666"
+                                                              Fill="Transparent"
+                                                              StrokeThickness="1.5"
+                                                              RadiusX="1.5"
+                                                              RadiusY="1.5"
+                                                              HorizontalOptions="Fill"
+                                                              VerticalOptions="Fill"
+                                                              Margin="0,4,0,0" />
+                                                    <!-- Calendar top binding (two small rectangles) -->
+                                                    <HorizontalStackLayout Spacing="6"
+                                                                          HorizontalOptions="Center"
+                                                                          VerticalOptions="Start"
+                                                                          Margin="0,2,0,0">
+                                                        <Rectangle Fill="#666666"
+                                                                  WidthRequest="2"
+                                                                  HeightRequest="2"
+                                                                  RadiusX="1"
+                                                                  RadiusY="1" />
+                                                        <Rectangle Fill="#666666"
+                                                                  WidthRequest="2"
+                                                                  HeightRequest="2"
+                                                                  RadiusX="1"
+                                                                  RadiusY="1" />
+                                                    </HorizontalStackLayout>
+                                                </Grid>
+                                                <Label Text="{Binding CreatedDate, StringFormat='{0:MMM dd, yyyy}'}"
+                                                       FontSize="12"
+                                                       TextColor="#666666"
+                                                       VerticalOptions="Center" />
+                                                
+                                                <!-- Photo count (optional) -->
+                                                <Label Text="🖼️"
+                                                       FontSize="12"
+                                                       VerticalOptions="Center"
+                                                       Margin="12,0,0,0"
+                                                       IsVisible="{Binding ShowPhotoCount}" />
+                                                <Label Text="{Binding TotalPhotos}"
+                                                       FontSize="12"
+                                                       TextColor="#666666"
+                                                       VerticalOptions="Center"
+                                                       IsVisible="{Binding ShowPhotoCount}" />
+                                                
+                                                <!-- Storage size (optional) -->
+                                                <Label Text="💾"
+                                                       FontSize="12"
+                                                       VerticalOptions="Center"
+                                                       Margin="12,0,0,0"
+                                                       IsVisible="{Binding ShowStorageSize}" />
+                                                <Label Text="{Binding TotalSizeMb, StringFormat='{0:F1} MB'}"
+                                                       FontSize="12"
+                                                       TextColor="#666666"
+                                                       VerticalOptions="Center"
+                                                       IsVisible="{Binding ShowStorageSize}" />
+                                            </HorizontalStackLayout>
+                                        </VerticalStackLayout>
+                                    </VerticalStackLayout>
+                                </Frame>
+                            </Grid>
+                        </DataTemplate>
+                    </CollectionView.ItemTemplate>
+                </CollectionView>
+
+                <!-- EMPTY STATE -->
+                <Grid x:Name="EmptyStateView"
+                      VerticalOptions="CenterAndExpand"
+                      HorizontalOptions="Center"
+                      IsVisible="{Binding HasPhotoBooks, Converter={StaticResource InverseBoolConverter}}"
+                      Margin="0,40,0,0">
+                    <Frame Padding="30"
+                           HasShadow="True"
+                           CornerRadius="12"
+                           BackgroundColor="White"
+                           BorderColor="#E0E0E0">
+                        <VerticalStackLayout Spacing="12" HorizontalOptions="Center" VerticalOptions="Center">
+                            <Label Text="No photo books yet"
+                                   FontSize="20"
+                                   FontAttributes="Bold"
+                                   TextColor="#333333"
+                                   HorizontalTextAlignment="Center" />
+                            <Label Text="Create your first photo book to get started."
+                                   FontSize="14"
+                                   TextColor="#555555"
+                                   HorizontalTextAlignment="Center" />
+                            <Button Text="+ New Photobook"
+                                    Padding="20,12"
+                                    BackgroundColor="#C7D9B7"
+                                    TextColor="#410803"
+                                    CornerRadius="8"
+                                    Command="{Binding NewPhotoBookCommand}" />
+                        </VerticalStackLayout>
+                    </Frame>
+                </Grid>
+
+            </VerticalStackLayout>
+        </ScrollView>
+        
+        <!-- Create PhotoBook Modal -->
+        <views:CreatePhotoBookModal x:Name="CreatePhotoBookModal"
+                                    IsVisible="{Binding IsCreatePhotoBookModalVisible}"
+                                    HorizontalOptions="Fill"
+                                    VerticalOptions="Fill" />
+    </Grid>
+</ContentPage>
+

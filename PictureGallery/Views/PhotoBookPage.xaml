@@ -1,0 +1,322 @@
+<ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:converters="clr-namespace:PictureGallery.Converters"
+             x:Class="PictureGallery.Views.PhotoBookPage"
+             Title="Photo Book"
+             BackgroundColor="#F3E1DD"
+             xmlns:converters1="clr-namespace:PictureGallery.Converters"
+             Shell.NavBarIsVisible="False">
+
+    <Grid RowDefinitions="Auto,*,Auto">
+        
+        <!-- Top Toolbar -->
+        <Grid Grid.Row="0">
+            <Border BackgroundColor="#F3E1DD"
+                    StrokeThickness="0"
+                    Padding="15"
+                    Stroke="#C7D9B7">
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <!-- Back Button -->
+                    <Border Grid.Column="0"
+                            WidthRequest="44"
+                            HeightRequest="44"
+                            StrokeThickness="2"
+                            Stroke="Black"
+                            BackgroundColor="Transparent"
+                            Margin="0,0,15,0">
+                        <Border.StrokeShape>
+                            <RoundRectangle CornerRadius="22" />
+                        </Border.StrokeShape>
+                        <Button x:Name="BackButton"
+                                FontFamily="MaterialIcons"
+                                Text="chevron_left"
+                                FontSize="28"
+                                BackgroundColor="Transparent"
+                                TextColor="Black"
+                                Padding="0"
+                                Margin="0"
+                                HorizontalOptions="Fill"
+                                VerticalOptions="Fill"
+                                Clicked="BackButton_Clicked" />
+                    </Border>
+                    
+                    <HorizontalStackLayout Grid.Column="1" Spacing="15" HorizontalOptions="Fill">
+                    
+                        <!-- Add Photo Button -->
+                    <Button Text="Add Photo"
+                            Command="{Binding AddPhotoCommand}"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
+                            CornerRadius="8"
+                            Padding="15,10" />
+
+                    <!-- Convert to PDF Button -->
+                    <Button Text="Create PDF"
+                            Command="{Binding StartPdfModeCommand}"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
+                            CornerRadius="8"
+                            Padding="15,10" />
+
+                    <!-- Delete Photos Button -->
+                    <Button Text="Delete"
+                            Command="{Binding StartDeleteModeCommand}"
+                            BackgroundColor="#C7D9B7"
+                            TextColor="#410803"
+                            CornerRadius="8"
+                            Padding="15,10" />
+
+                    </HorizontalStackLayout>
+
+                    <!-- Upgrade Button - Rechtsboven -->
+                    <Button x:Name="UpgradeButton"
+                            Grid.Column="2"
+                            Text="Upgrade"
+                            BackgroundColor="#1E88E5"
+                            TextColor="White"
+                            CornerRadius="8"
+                            Padding="15,10"
+                            Margin="15,0,0,0"
+                            Clicked="UpgradeButton_Clicked" />
+                </Grid>
+            </Border>
+            
+            <!-- Navigation buttons removed - all photos on one page -->
+        </Grid>
+
+        <!-- Main Content Area -->
+        <Grid Grid.Row="1"
+              Margin="10">
+            
+            <!-- Single Page Container - All photos on one page -->
+            <Border x:Name="PageContainer"
+                    StrokeThickness="2"
+                    Stroke="#E0E0E0"
+                    BackgroundColor="White"
+                    Padding="20"
+                    Loaded="PageContainer_Loaded">
+                
+                <Grid>
+                    
+                    <!-- Photos Grid - True Masonry Layout with dynamic columns -->
+                    <ScrollView
+                                x:Name="MasonryScrollView">
+                        <Grid x:Name="MasonryGrid"
+                              ColumnSpacing="15"
+                              RowSpacing="0"
+                              SizeChanged="MasonryGrid_SizeChanged">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" x:Name="Col0" />
+                                <ColumnDefinition Width="*" x:Name="Col1" />
+                                <ColumnDefinition Width="*" x:Name="Col2" />
+                            </Grid.ColumnDefinitions>
+                            
+                            <!-- Column 0 -->
+                            <VerticalStackLayout Grid.Column="0"
+                                                  Spacing="15"
+                                                  x:Name="Column0" />
+                            
+                            <!-- Column 1 -->
+                            <VerticalStackLayout Grid.Column="1"
+                                                  Spacing="15"
+                                                  x:Name="Column1" />
+                            
+                            <!-- Column 2 -->
+                            <VerticalStackLayout Grid.Column="2"
+                                                  Spacing="15"
+                                                  x:Name="Column2" />
+                        </Grid>
+                    </ScrollView>
+                    
+                    <!-- Hidden CollectionView for binding context -->
+                    <CollectionView Grid.Row="0"
+                                    ItemsSource="{Binding PhotoBook.Pages[0].Photos}"
+                                    IsVisible="False"
+                                    x:Name="HiddenPhotosCollection">
+                        <CollectionView.ItemTemplate>
+                            <DataTemplate>
+                                <Border StrokeThickness="2"
+                                        Stroke="#E0E0E0"
+                                        BackgroundColor="White"
+                                        Padding="5"
+                                        Margin="0,0,0,0"
+                                        x:Name="PhotoBorder">
+                                    
+                                    <Border.GestureRecognizers>
+                                        <TapGestureRecognizer 
+                                            Command="{Binding Source={RelativeSource AncestorType={x:Type ContentPage}}, Path=BindingContext.PhotoTappedCommand}"
+                                            CommandParameter="{Binding .}" />
+                                    </Border.GestureRecognizers>
+
+                                                <Grid>
+                                                    
+                                                    <!-- Photo Image - Responsive with maintained aspect ratio -->
+                                                    <Image Source="{Binding ImageSource}"
+                                                           Aspect="AspectFit"
+                                                           BackgroundColor="#F0F0F0"
+                                                           x:Name="PhotoImage">
+                                                        <!-- Height will be calculated based on aspect ratio -->
+                                                    </Image>
+
+                                                    <!-- Selection Overlay - Delete Mode (Red) -->
+                                                    <Border StrokeThickness="3"
+                                                            Stroke="#F44336"
+                                                            BackgroundColor="#40F44336"
+                                                            IsVisible="{Binding IsSelected}">
+                                                        <Border.Triggers>
+                                                            <DataTrigger TargetType="Border" 
+                                                                         Binding="{Binding Source={x:Reference PhotoCarousel}, Path=BindingContext.IsPdfMode}" 
+                                                                         Value="True">
+                                                                <Setter Property="IsVisible" Value="False" />
+                                                            </DataTrigger>
+                                                        </Border.Triggers>
+                                                        
+                                                        <!-- Checkmark -->
+                                                        <Label Text="✓"
+                                                               FontSize="48"
+                                                               TextColor="White"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               FontAttributes="Bold" />
+                                                    </Border>
+
+                                                    <!-- Selection Overlay - PDF Mode (Green) -->
+                                                    <Border StrokeThickness="3"
+                                                            Stroke="#4CAF50"
+                                                            BackgroundColor="#404CAF50"
+                                                            IsVisible="False">
+                                                        <Border.Triggers>
+                                                            <MultiTrigger TargetType="Border">
+                                                                <MultiTrigger.Conditions>
+                                                                    <BindingCondition Binding="{Binding IsSelected}" Value="True" />
+                                                                    <BindingCondition Binding="{Binding Source={x:Reference PhotoCarousel}, Path=BindingContext.IsPdfMode}" Value="True" />
+                                                                </MultiTrigger.Conditions>
+                                                                <Setter Property="IsVisible" Value="True" />
+                                                            </MultiTrigger>
+                                                        </Border.Triggers>
+                                                        
+                                                        <!-- Checkmark -->
+                                                        <Label Text="✓"
+                                                               FontSize="48"
+                                                               TextColor="White"
+                                                               HorizontalOptions="Center"
+                                                               VerticalOptions="Center"
+                                                               FontAttributes="Bold" />
+                                                    </Border>
+
+                                                </Grid>
+
+                                            </Border>
+                                        </DataTemplate>
+                                    </CollectionView.ItemTemplate>
+                                </CollectionView>
+
+                    <!-- Title Entry removed -->
+
+                </Grid>
+
+            </Border>
+
+
+        </Grid>
+
+        <!-- Bottom Toolbar (Delete Mode) -->
+        <Border Grid.Row="2"
+                BackgroundColor="#F44336"
+                StrokeThickness="0"
+                Padding="15,15,15,50"
+                IsVisible="{Binding IsDeleteMode}">
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                
+                <Button Text="Delete Selected Photos"
+                        Command="{Binding DeleteSelectedPhotosCommand}"
+                        BackgroundColor="White"
+                        TextColor="#F44336"
+                        CornerRadius="8"
+                        Padding="20,10"
+                        FontAttributes="Bold" />
+
+                <Button Text="Annuleren"
+                        Command="{Binding CancelDeleteModeCommand}"
+                        BackgroundColor="White"
+                        TextColor="#F44336"
+                        CornerRadius="8"
+                        Padding="20,10"
+                        FontAttributes="Bold" />
+
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- Bottom Toolbar (PDF Mode) -->
+        <Border Grid.Row="2"
+                BackgroundColor="#4CAF50"
+                StrokeThickness="0"
+                Padding="15,15,15,50"
+                IsVisible="{Binding IsPdfMode}">
+            <HorizontalStackLayout Spacing="15" HorizontalOptions="Center">
+                
+                <Button Text="Export to PDF"
+                        Clicked="ExportPdf_Clicked"
+                        BackgroundColor="White"
+                        TextColor="#4CAF50"
+                        CornerRadius="8"
+                        Padding="20,10"
+                        FontAttributes="Bold" />
+
+                <Button Text="Annuleren"
+                        Command="{Binding CancelPdfModeCommand}"
+                        BackgroundColor="White"
+                        TextColor="#4CAF50"
+                        CornerRadius="8"
+                        Padding="20,10"
+                        FontAttributes="Bold" />
+
+            </HorizontalStackLayout>
+        </Border>
+
+        <!-- Page indicator removed - all photos on one page -->
+
+        <!-- PDF Progress Overlay -->
+        <Border x:Name="ProgressFrame"
+                Grid.Row="0"
+                Grid.RowSpan="3"
+                IsVisible="False"
+                BackgroundColor="#E0000000"
+                StrokeThickness="0"
+                Padding="40">
+            <Border BackgroundColor="White"
+                    Padding="30"
+                    WidthRequest="350">
+                
+                <VerticalStackLayout Spacing="20">
+                    
+                    <Label Text="Creating PDF..."
+                           FontSize="20"
+                           FontAttributes="Bold"
+                           HorizontalOptions="Center" />
+                    
+                    <ActivityIndicator x:Name="PdfSpinner"
+                                       IsRunning="True"
+                                       Color="#4CAF50"
+                                       HeightRequest="50"
+                                       WidthRequest="50"
+                                       HorizontalOptions="Center" />
+                    
+                    <ProgressBar x:Name="PdfProgressBar"
+                                 Progress="0"
+                                 ProgressColor="#4CAF50"
+                                 HeightRequest="20" />
+                    
+                    <Label x:Name="ProgressLabel"
+                           Text="0% (0 of 0 photos)"
+                           FontSize="16"
+                           HorizontalOptions="Center" />
+
+                </VerticalStackLayout>
+
+            </Border>
+        </Border>
+
+    </Grid>
+
+</ContentPage>

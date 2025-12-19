@@ -1,0 +1,127 @@
+﻿using System.Collections.ObjectModel;
+using System.ComponentModel;
+using System.Linq;
+using System.Runtime.CompilerServices;
+using SQLite;
+
+namespace PictureGallery.Models;
+
+/// <summary>
+/// Representeert een individuele pagina binnen een PhotoBook
+/// </summary>
+public class PhotoBookPageModel
+{
+    public ObservableCollection<PhotoItem> Photos { get; } = new();
+    public string? Title { get; set; }
+}
+
+/// <summary>
+/// Database model voor PhotoBook met metadata (naam, beschrijving, datum, etc.)
+/// </summary>
+[Table("PhotoBooks")]
+public class PhotoBook : INotifyPropertyChanged
+{
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    [PrimaryKey, AutoIncrement]
+    public int Id { get; set; }
+
+    [NotNull]
+    public string Name { get; set; } = string.Empty;
+
+    public string? Description { get; set; }
+
+    [Indexed]
+    public DateTime CreatedDate { get; set; } = DateTime.Now;
+
+    public DateTime UpdatedDate { get; set; } = DateTime.Now;
+
+    // Runtime property - niet opgeslagen in database
+    [Ignore]
+    public ObservableCollection<PhotoBookPageModel> Pages { get; } = new();
+
+    // Computed properties voor UI
+    [Ignore]
+    public int TotalPhotos
+    {
+        get
+        {
+            return Pages?.Sum(p => p.Photos?.Count ?? 0) ?? 0;
+        }
+    }
+
+    [Ignore]
+    public double TotalSizeMb
+    {
+        get
+        {
+            double totalSize = 0;
+            if (Pages != null)
+            {
+                foreach (var page in Pages)
+                {
+                    if (page.Photos != null)
+                    {
+                        totalSize += page.Photos.Sum(p => p.FileSizeMb);
+                    }
+                }
+            }
+            return totalSize;
+        }
+    }
+
+    // Gecachte thumbnail image source
+    private ImageSource? _thumbnailImage;
+    
+    [Ignore]
+    public ImageSource? ThumbnailImage
+    {
+        get => _thumbnailImage;
+        set
+        {
+            if (_thumbnailImage != value)
+            {
+                _thumbnailImage = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(HasThumbnail));
+                OnPropertyChanged(nameof(HasNoThumbnail));
+            }
+        }
+    }
+
+    [Ignore]
+    public bool HasNoThumbnail => ThumbnailImage == null;
+
+    [Ignore]
+    public bool HasThumbnail => ThumbnailImage != null;
+
+    [Ignore]
+    public bool HasDescription => !string.IsNullOrWhiteSpace(Description);
+
+    [Ignore]
+    public bool ShowPhotoCount => TotalPhotos > 0;
+
+    [Ignore]
+    public bool ShowStorageSize => TotalSizeMb > 0;
+
+    // Selectiestatus voor UI (alleen runtime)
+    private bool _isSelected;
+    [Ignore]
+    public bool IsSelected
+    {
+        get => _isSelected;
+        set
+        {
+            if (_isSelected != value)
+            {
+                _isSelected = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    protected virtual void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+    }
+}
