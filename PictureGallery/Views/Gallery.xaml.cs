@@ -15,11 +15,11 @@ public partial class Gallery : ContentPage
         var viewModel = new GalleryViewModel();
         BindingContext = viewModel;
         
-        // Abonneer op ViewModel events voor MVVM communicatie
+        // Subscribe to ViewModel events for MVVM communication
         viewModel.MapLocationUpdateRequested += OnMapLocationUpdateRequested;
         viewModel.RequestShowCreatePhotoBookModal += OnRequestShowCreatePhotoBookModal;
 
-        // Stel modal events in
+        // Wire up modal events
         CreatePhotoBookModal.OnCreate += OnPhotoBookCreated;
         CreatePhotoBookModal.OnCancel += OnPhotoBookCanceled;
 
@@ -68,7 +68,7 @@ public partial class Gallery : ContentPage
         if (MapBorder == null || MapPlaceholderLabel == null)
             return;
             
-        // Windows en macOS: Gebruik WebView met Mapbox
+        // Windows and macOS: use WebView with Mapbox
         try
         {
             _webViewMap = new WebView
@@ -77,18 +77,18 @@ public partial class Gallery : ContentPage
                 VerticalOptions = LayoutOptions.Fill,
                 Source = new HtmlWebViewSource
                 {
-                    Html = GetMapboxMapHtml(0, 0) // Standaard naar wereldweergave
+                    Html = GetMapboxMapHtml(0, 0) // Default to world view
                 },
                 BackgroundColor = Colors.Transparent
             };
             
-            // Wacht tot WebView volledig geladen is voordat we het tonen
+            // Wait for WebView to finish navigating before showing it
             _webViewMap.Navigated += (s, e) =>
             {
                 if (e.Result == WebNavigationResult.Success)
                 {
                     System.Diagnostics.Debug.WriteLine("[WebView Map] Navigation successful");
-                    // Korte vertraging om ervoor te zorgen dat content gerenderd is
+                    // Short delay to ensure content has rendered
                     Task.Delay(500).ContinueWith(_ =>
                     {
                         MainThread.BeginInvokeOnMainThread(() =>
@@ -129,7 +129,7 @@ public partial class Gallery : ContentPage
 
         if (!hasValidKey)
         {
-            // Retourneer HTML met bericht over API key
+            // Return HTML with message about API key
             return $@"
 <!DOCTYPE html>
 <html>
@@ -221,7 +221,7 @@ public partial class Gallery : ContentPage
                 }}
                 
                 try {{
-                    // Zet API key - al geëscapeerd in C# string interpolatie
+                    // Set API key - already escaped in C# string interpolation
                     mapboxgl.accessToken = ""{apiKey.Replace("\\", "\\\\").Replace("\"", "\\\"")}"";
                     
                     var map = new mapboxgl.Map({{
@@ -231,16 +231,16 @@ public partial class Gallery : ContentPage
                         zoom: 13
                     }});
                     
-                    // Voeg navigatie controls toe
+                    // Add navigation controls
                     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
                     
-                    // Zorg dat map correct resize't
+                    // Ensure map is resized correctly
                     map.on('load', function() {{
                         map.resize();
                         console.log('Mapbox map loaded successfully');
                     }});
                     
-                    // Behandel resize
+                    // Handle resize
                     window.addEventListener('resize', function() {{
                         if (map) map.resize();
                     }});
@@ -254,7 +254,7 @@ public partial class Gallery : ContentPage
                 }}
             }}
             
-            // Wacht tot Mapbox GL JS geladen is
+            // Wait until Mapbox GL JS is loaded
             if (document.readyState === 'loading') {{
                 document.addEventListener('DOMContentLoaded', function() {{
                     setTimeout(initMap, 100);
@@ -294,13 +294,13 @@ public partial class Gallery : ContentPage
         {
             await viewModel.LoadPhotosAsync();
             
-            // Zet BindingContext expliciet op CollectionView zodat RelativeSource in DataTemplate werkt
+            // Explicitly set BindingContext on CollectionView so RelativeSource in DataTemplate works
             if (PhotosCollection != null)
             {
                 PhotosCollection.BindingContext = viewModel;
             }
             
-            // Zet BindingContext expliciet op FullscreenOverlay zodat alle bindings daar werken
+            // Explicitly set BindingContext on FullscreenOverlay so all bindings work
             var fullscreenOverlay = this.FindByName<Grid>("FullscreenOverlay");
             if (fullscreenOverlay != null)
                 {
@@ -314,7 +314,7 @@ public partial class Gallery : ContentPage
     {
         if (sender is Grid headerGrid)
         {
-            // Probeer eerst direct named elements (werkt wanneer ContentPage volledig gebruikt wordt)
+            // Try named elements first (works when ContentPage is fully used)
             var galleryTitle = GalleryTitle ?? this.FindByName<Label>("GalleryTitle");
             var filterLabelButton = FilterLabelButton ?? this.FindByName<Button>("FilterLabelButton");
             var sortDateButton = SortDateButton ?? this.FindByName<Button>("SortDateButton");
@@ -391,7 +391,7 @@ public partial class Gallery : ContentPage
     {
         PhotosCollection_SizeChanged(sender, e);
 
-        // Zet BindingContext expliciet op CollectionView zodat RelativeSource in DataTemplate werkt
+        // Explicitly set BindingContext on CollectionView so RelativeSource in DataTemplate works
         if (PhotosCollection != null && BindingContext != null)
         {
             PhotosCollection.BindingContext = BindingContext;
