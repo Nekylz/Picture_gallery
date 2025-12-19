@@ -1,6 +1,6 @@
 using Microsoft.Maui.Controls;
-using PictureGallery.ViewModels;
 using PictureGallery.Configuration;
+using PictureGallery.ViewModels;
 
 namespace PictureGallery.Views;
 
@@ -8,6 +8,7 @@ public partial class Gallery : ContentPage
 {
     private WebView? _webViewMap;
     
+
     public Gallery()
     {
         InitializeComponent();
@@ -109,19 +110,23 @@ public partial class Gallery : ContentPage
             MapPlaceholderLabel.IsVisible = true;
         }
     }
-    
+
+    #region - Location handling
     private string GetMapboxMapHtml(double lat, double lon)
     {
-        // Standaard naar centrum van Nederland als geen coördinaten gegeven zijn
-        if (lat == 0 && lon == 0)
+        if (BindingContext is not GalleryViewModel viewModel)
+            return string.Empty;
+
+        // Default to current photo coordinates if none provided
+        if ((lat == 0 && lon == 0) && viewModel.CurrentPhoto != null)
         {
-            lat = 52.1326; // Amsterdam
-            lon = 5.2913;
+            lat = viewModel.CurrentPhoto.Latitude;
+            lon = viewModel.CurrentPhoto.Longitude;
         }
-        
+
         var apiKey = MapboxConfig.ApiKey;
         var hasValidKey = MapboxConfig.HasValidApiKey;
-        
+
         if (!hasValidKey)
         {
             // Retourneer HTML met bericht over API key
@@ -269,7 +274,8 @@ public partial class Gallery : ContentPage
 </html>";
         return htmlContent;
     }
-    
+
+    #endregion
     public void UpdateWebMapLocation(double lat, double lon)
     {
         if (_webViewMap != null)
