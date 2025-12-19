@@ -1,5 +1,7 @@
 ﻿using PictureGallery.ViewModels;
+using PictureGallery.Services;
 using CommunityToolkit.Maui.Storage;
+using CommunityToolkit.Maui.Views;
 using Microsoft.Maui.ApplicationModel;
 using Microsoft.Maui.Controls;
 using PdfSharpCore.Pdf;
@@ -14,6 +16,12 @@ namespace PictureGallery.Views;
 public partial class PhotoBookPage : ContentPage
 {
     private PhotoBookPageViewModel? ViewModel => BindingContext as PhotoBookPageViewModel;
+    
+    // Aantal foto's waarna snelle PDF relevant wordt
+    private const int FastPdfThreshold = 8;
+    
+    // Houdt bij of de upgrade popup deze sessie al is getoond
+    private bool _upgradePopupShownThisSession = false;
 
     public PhotoBookPage() : this(null) { }
 
@@ -305,6 +313,9 @@ public partial class PhotoBookPage : ContentPage
         {
             await ViewModel.LoadPhotoBookAsync();
             
+            // Update upgrade knop tekst
+            UpdateUpgradeButtonText();
+            
             // Wacht wat langer om ervoor te zorgen dat visual tree klaar is
             await Task.Delay(800);
             
@@ -375,6 +386,92 @@ public partial class PhotoBookPage : ContentPage
                 await Application.Current.MainPage.Navigation.PopAsync();
             }
         }
+    }
+
+    // Upgrade knop geklikt
+    private async void UpgradeButton_Clicked(object? sender, EventArgs e)
+    {
+        bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+
+        if (fastUnlocked)
+        {
+            await DisplayAlert("Plan", "Fast conversion is al actief.", "OK");
+            return;
+        }
+
+        var popup = new PlanPopup();
+        var result = await this.ShowPopupAsync(popup);
+
+        if (result is string password)
+        {
+            if (password == "DEVGROUP2")
+            {
+                Preferences.Set("FastPdfUnlocked", true);
+                UpdateUpgradeButtonText();
+                
+                await DisplayAlert(
+                    "Upgrade voltooid",
+                    "Fast conversie is nu geactiveerd. Bedankt en veel plezier met het gebruik.",
+                    "OK");
+            }
+            else if (!string.IsNullOrWhiteSpace(password))
+            {
+                await DisplayAlert("Fout", "Onjuist wachtwoord.", "OK");
+            }
+        }
+    }
+
+    // Update upgrade knop tekst
+    private void UpdateUpgradeButtonText()
+    {
+        if (UpgradeButton == null) return;
+
+        bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+
+        if (fastUnlocked)
+        {
+            UpgradeButton.Text = "Fast Plan";
+            UpgradeButton.BackgroundColor = Color.FromArgb("#4CAF50"); // Groen
+        }
+        else
+        {
+            UpgradeButton.Text = "Upgrade";
+            UpgradeButton.BackgroundColor = Color.FromArgb("#1E88E5"); // Blauw
+        }
+    }
+
+    // Snelle PDF conversie met progress
+    private async Task GenerateFastPdfWithProgress(string[] images, string outputPath)
+    {
+        int totalImages = images.Length;
+        int processed = 0;
+
+        await MainThread.InvokeOnMainThreadAsync(() =>
+        {
+            PdfProgressBar.Progress = 0;
+            ProgressLabel.Text = $"0% (0 van {totalImages} foto's)";
+        });
+
+        await Task.Run(() =>
+        {
+            SkiaSharpPdfService.ImagesToPdf(
+                images,
+                outputPath,
+                (current, total) =>
+                {
+                    double progress = (double)current / total;
+                    
+                    MainThread.BeginInvokeOnMainThread(() =>
+                    {
+                        PdfProgressBar.Progress = progress;
+                        ProgressLabel.Text = $"{(int)(progress * 100)}% ({current} van {total} foto's)";
+                    });
+                    
+                    processed = current;
+                });
+        });
+
+        System.Diagnostics.Debug.WriteLine($"[GenerateFastPdfWithProgress] PDF export completed: {outputPath}");
     }
 
     // OnPageChanged verwijderd - alle foto's op één pagina
@@ -881,9 +978,43 @@ public partial class PhotoBookPage : ContentPage
 
             ProgressFrame.IsVisible = true;
             PdfProgressBar.Progress = 0;
-            ProgressLabel.Text = "0% (0 of 0 photos)";
+            ProgressLabel.Text = $"0% (0 van {selectedPhotos.Length} foto's)";
 
-            await GeneratePdfWithProgress(selectedPhotos, pdfPath);
+            bool fastUnlocked = Preferences.Get("FastPdfUnlocked", false);
+            bool exceedsLimit = selectedPhotos.Length > FastPdfThreshold;
+
+            // Toon upgrade popup als nodig
+            if (exceedsLimit && !fastUnlocked && !_upgradePopupShownThisSession)
+            {
+                _upgradePopupShownThisSession = true;
+
+                bool upgrade = await DisplayAlert(
+                    "Langzame conversie",
+                    "Upgrade voor snelle PDF conversie?",
+                    "Upgrade",
+                    "Doorgaan");
+
+                if (upgrade)
+                {
+                    var popup = new PlanPopup();
+                    var result = await this.ShowPopupAsync(popup);
+
+                    if (result is string password && password == "DEVGROUP2")
+                    {
+                        Preferences.Set("FastPdfUnlocked", true);
+                        fastUnlocked = true;
+                        UpdateUpgradeButtonText();
+                    }
+                }
+            }
+
+            // Gebruik snelle PDF als unlocked en limiet overschreden
+            bool useFastPdf = fastUnlocked && exceedsLimit;
+
+            if (useFastPdf)
+                await GenerateFastPdfWithProgress(selectedPhotos, pdfPath);
+            else
+                await GeneratePdfWithProgress(selectedPhotos, pdfPath);
 
             ProgressFrame.IsVisible = false;
 

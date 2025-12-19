@@ -15,7 +15,7 @@
                     StrokeThickness="0"
                     Padding="15"
                     Stroke="#C7D9B7">
-                <Grid ColumnDefinitions="Auto,*">
+                <Grid ColumnDefinitions="Auto,*,Auto">
                     <!-- Back Button -->
                     <Border Grid.Column="0"
                             WidthRequest="44"
@@ -67,6 +67,17 @@
                             Padding="15,10" />
 
                     </HorizontalStackLayout>
+
+                    <!-- Upgrade Button - Rechtsboven -->
+                    <Button x:Name="UpgradeButton"
+                            Grid.Column="2"
+                            Text="Upgrade"
+                            BackgroundColor="#1E88E5"
+                            TextColor="White"
+                            CornerRadius="8"
+                            Padding="15,10"
+                            Margin="15,0,0,0"
+                            Clicked="UpgradeButton_Clicked" />
                 </Grid>
             </Border>
             
