@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<toolkit:Popup
+    xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+    xmlns:toolkit="http://schemas.microsoft.com/dotnet/2022/maui/toolkit"
+    x:Class="PictureGallery.Views.PlanPopup">
+
+    <Frame Padding="16"
+           CornerRadius="14"
+           BackgroundColor="#2A2A2A"
+           MaximumWidthRequest="320"
+           HorizontalOptions="Center">
+
+        <VerticalStackLayout Spacing="12">
+
+            <Label Text="Kies je plan"
+                   FontSize="18"
+                   FontAttributes="Bold"
+                   TextColor="White"
+                   HorizontalTextAlignment="Center" />
+
+            <!-- Basic plan -->
+            <Frame Padding="12"
+                   CornerRadius="10"
+                   BackgroundColor="#3A3A3A">
+
+                <VerticalStackLayout Spacing="2">
+                    <Label Text="Basic"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Text="Langzame PDF conversie"
+                           FontSize="12"
+                           TextColor="#CCCCCC" />
+                    <Label Text="Actief"
+                           FontSize="12"
+                           TextColor="#8BC34A" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Fast plan -->
+            <Frame Padding="12"
+                   CornerRadius="10"
+                   BackgroundColor="#1E88E5">
+
+                <VerticalStackLayout Spacing="4">
+                    <Label Text="Fast conversion"
+                           FontAttributes="Bold"
+                           TextColor="White" />
+                    <Label Text="Snellere PDF export"
+                           FontSize="12"
+                           TextColor="White" />
+                    <Label Text="Eenmalige betaling €8,99"
+                           FontSize="12"
+                           TextColor="White" />
+
+                    <Button Text="Upgrade"
+                            Clicked="Upgrade_Clicked" />
+                </VerticalStackLayout>
+            </Frame>
+
+            <!-- Wachtwoord invoer -->
+            <Entry x:Name="PasswordEntry"
+                   Placeholder="Wachtwoord"
+                   IsPassword="True"
+                   IsVisible="False"
+                   ReturnType="Done"
+                   Completed="PasswordEntry_Completed" />
+
+            <Button x:Name="ConfirmUpgradeButton"
+                    Text="Bevestigen"
+                    IsVisible="False"
+                    Clicked="ConfirmUpgrade_Clicked" />
+
+            <Button Text="Sluiten"
+                    Clicked="Close_Clicked" />
+
+        </VerticalStackLayout>
+
+    </Frame>
+</toolkit:Popup>
